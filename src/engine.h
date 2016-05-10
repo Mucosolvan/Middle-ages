@@ -25,6 +25,7 @@ int init(int n, int k, int p, int x1, int y1, int x2, int y2);
  * @return 42 Move is incorrect or done before second init.
  * @return 1 By doing this move first player won.
  * @return 2 By doing this move second player won.
+ * @return -1 By doing this move players drew.
  * @return 0 Otherwise.
  */
 int move(int x1, int y1, int x2, int y2);

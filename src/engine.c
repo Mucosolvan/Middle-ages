@@ -9,6 +9,7 @@ typedef enum PieceType PieceType;
 
 enum PieceType {PEASANT = 1, KING, KNIGHT};
 
+//TODO Conditions in functions
 
 /**
  * Piece knows its coordinates (x - column number, y - row number), type,
@@ -42,9 +43,9 @@ struct PieceList {
  * 
  * initNumber - Number of initializations that have been done.
  *
- * kingX1, kingY1 - coordinates of first player's king on the beginning.
+ * kingX1, kingY1 - Coordinates of first player's king at the beginning.
  * 
- * kingX2, kingY2 - coordinates of second player's king on the beginning.
+ * kingX2, kingY2 - Coordinates of second player's king at the beginning.
  *
  * topLeft[i][j] - What piece is in i-th column and j-th row;
  * null if no piece is in i-th column and j-th row.
@@ -52,13 +53,15 @@ struct PieceList {
  * pieces[i] - List of pieces of i-th player.
  */
  
-int boardSize, turnNumber = 1, turnLimit, playerNumber = 1, initNumber;
+int boardSize, turnNumber = 1, turnLimit, playerNumber = 0, initNumber;
 int kingX1, kingY1, kingX2, kingY2;
 Piece* topLeft[15][15];
 PieceList* pieces[3];
 
 /**
- * Check if position (x,y) is valid.
+ * Check if position (x,y) is valid (on the board).
+ * @param[in] x Column number.
+ * @param[in] y Row number.
  */
 bool validPosition(int x, int y) {
 	return (x >= 1) && (x <= boardSize) && (y >= 1) && (y <= boardSize);
@@ -66,6 +69,9 @@ bool validPosition(int x, int y) {
 
 /**
  * Check if position of piece is equal to (x,y).
+ * @param[in] x Column number.
+ * @param[in] y Row number.
+ * @param[in] piece Piece to check.
  */
 bool equalPositions(int x, int y, Piece* piece) {
 	return (piece->x == x) && (piece->y == y);
@@ -73,6 +79,7 @@ bool equalPositions(int x, int y, Piece* piece) {
 
 /**
  * Check if piece can move in this turn.
+ * @param[in] piece Piece to check.
  */
 bool canMove(Piece* piece) {
 	return piece->lastMove != turnNumber;
@@ -80,15 +87,22 @@ bool canMove(Piece* piece) {
 
 /**
  * Check if piece can produce another piece in this turn.
+ * @param[in] piece Piece to check.
  */
 bool canProduce(Piece* piece) {
 	return (piece->type == PEASANT) && (piece->lastMove <= turnNumber - 3);
 }
 
+/**
+ * Check if two pieces are equal.
+ * @param[in] piece1 First piece.
+ * @param[in] piece2 Second piece.
+ */
 bool equalPieces(Piece* piece1, Piece* piece2) {
 	return equalPositions(piece2->x, piece2->y, piece1) &&
 	(piece2->type == piece1->type);
 }
+
 void freePieceList(PieceList* pieceList) {
 	if (pieceList != NULL) {
 		freePieceList(pieceList->next);
@@ -103,6 +117,14 @@ void end_game() {
     freePieceList(pieces[1]);
 }
 
+/**
+ * Create a piece.
+ * @param[in] x Column number.
+ * @param[in] y Row number.
+ * @param[in] type Type of piece.
+ * @param[in] player Player who owns the piece.
+ * @param[in] turn The last turn piece moved.
+ */
 Piece* createPiece(int x, int y, PieceType type, int player, int turn){
     Piece* piece = malloc(sizeof(Piece));
     piece->x = x;
@@ -113,6 +135,10 @@ Piece* createPiece(int x, int y, PieceType type, int player, int turn){
     return piece;
 }
 
+/**
+ * Create a piece node to add to a list.
+ * @param[in] piece Piece that the pointer on a list will point to.
+ */
 PieceList* createPieceNode(Piece* piece){
     PieceList* pieceNode = malloc(sizeof(PieceList));
     pieceNode->piece = piece;
@@ -123,7 +149,7 @@ PieceList* createPieceNode(Piece* piece){
 /**
  * Add piece at the end of the list.
  * @param[in] piece Piece to add.
- * @param[in] pieceList Pointer to the beginning of the list.
+ * @param[in] pieceList Pointer pointing at pointer to beginning of the list.
  */
 void addPiece(Piece* piece, PieceList** pieceList){
     PieceList* list = *pieceList;
@@ -139,29 +165,42 @@ void addPiece(Piece* piece, PieceList** pieceList){
     }
 }
 
+/**
+ * Remove piece from the list.
+ * @param[in] piece Piece to remove.
+ * @param[in] pieceList Pointer pointing at pointer to beginning of the list.
+ */
 void removePiece(Piece* piece, PieceList** pieceList) {
 	PieceList* list = *pieceList;
-	while (list->next != NULL) {
-		if (equalPieces(piece, list->next->piece)) {
-			PieceList* nextPieceNode;
-			if (list->next->next == NULL)
-				nextPieceNode = NULL;
-			else
-				nextPieceNode = list->next->next;
-			free(list->next->piece);
-			free(list->next);
-			list->next = nextPieceNode;
-			break;
+	if (equalPieces(piece, list->piece)) {
+		*pieceList = list->next;
+		free(list->piece);
+		free(list);
+	}
+	else {
+		while (list->next != NULL) {
+			if (equalPieces(piece, list->next->piece)) {
+				PieceList* nextPieceNode;
+				if (list->next->next == NULL)
+					nextPieceNode = NULL;
+				else
+					nextPieceNode = list->next->next;
+				free(list->next->piece);
+				free(list->next);
+				list->next = nextPieceNode;
+				break;
+			}
+			list = list->next;
 		}
-		list = list->next;
 	}
 }
+
 /**
  * Create lists of pieces on the beginning of the game.
- * @param[in] x1 - Column number of the first player's king.
- * @param[in] y1 - Row number of the first player's king.
- * @param[in] x2 - Column number of the second player's king.
- * @param[in] y2 - Row number of the second player's king.
+ * @param[in] x1 First player's king column number.
+ * @param[in] y1 First player's king row number.
+ * @param[in] x2 Second player's king column number.
+ * @param[in] y2 Second player's king row number.
  */
 void createPieceLists(int x1, int y1, int x2, int y2){
     Piece* king1 = createPiece(x1, y1, KING, 0, 1);
@@ -187,6 +226,12 @@ void createPieceLists(int x1, int y1, int x2, int y2){
 
 /**
  * Check if parametres given in both inits are equal.
+ * @param[in] n - Board size.
+ * @param[in] k - Number of turns.
+ * @param[in] x1 - First player's king column number.
+ * @param[in] y1 - First player's king row number.
+ * @param[in] x2 - Second player's king column number.
+ * @param[in] y2 - Second player's king row number.
  */
 bool checkEqualInits(int n, int k, int x1, int y1, int x2, int y2) {
 	bool result = (boardSize == n) && (turnLimit == k);
@@ -195,6 +240,15 @@ bool checkEqualInits(int n, int k, int x1, int y1, int x2, int y2) {
 	return result;
 }
 
+/**
+ * Initialize a game.
+ * @param[in] n Board size.
+ * @param[in] k Number of turns.
+ * @param[in] x1 First player's king column number.
+ * @param[in] y1 First player's king row number.
+ * @param[in] x2 Second player's king column number.
+ * @param[in] y2 Second player's king row number.
+ */
 int init(int n, int k, int p, int x1, int y1, int x2, int y2) { 
     if (initNumber > 2)
         return 42;
@@ -228,6 +282,12 @@ int init(int n, int k, int p, int x1, int y1, int x2, int y2) {
     }
 }
 
+/**
+ * Check if there exists a piece on position (x,y) on a list.
+ * @param[in] x Column number.
+ * @param[in] y Row number.
+ * @param[in] list List of pieces.
+ */
 Piece* pieceExists(int x, int y, PieceList* list) {	
 	while (list != NULL) {
 		if (equalPositions(x, y, list->piece))
@@ -237,6 +297,13 @@ Piece* pieceExists(int x, int y, PieceList* list) {
 	return NULL;
 }
 
+/**
+ * Check whether move from position (x1,y1) to (x2,y2) is valid.
+ * @param[in] x1 First column number.
+ * @param[in] y1 First row number.
+ * @param[in] x2 Second column number.
+ * @param[in] y2 Second row number.
+ */
 bool validMove(int x1, int y1, int x2, int y2) {
 	return abs(x1 - x2) + abs(y1 - y2) == 1;
 }
@@ -255,13 +322,26 @@ int pieceFight(Piece* piece1, Piece* piece2) {
 	return piece1->type < piece2->type;
 }
 
+bool checkMove
+/**
+ * Makes a move.
+ * @param[in] x1 Column number before a move.
+ * @param[in] y1 Row number before a move.
+ * @param[in] x2 Column number after a move.
+ * @param[in] y2 Row number before a move.
+ * @return 42 Move is incorrect or done before second init.
+ * @return 1 By doing this move first player won.
+ * @return 2 By doing this move second player won.
+ * @return -1 By doing this move players drew.
+ * @return 0 Otherwise.
+ */
 int move(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
 	int secondPlayer = (playerNumber + 1) % 2;
 	Piece* piece2 = pieceExists(x2, y2, pieces[secondPlayer]);
 	bool conditions = initNumber == 2;
 	conditions = conditions && piece != NULL && canMove(piece);
-	conditions = conditions && piece2 == NULL;
+	conditions = conditions && pieceExists(x2, y2, pieces[playerNumber]) == NULL;
 	conditions = conditions && validPosition(x2, y2);
 	conditions = conditions && validPosition(x1, y1);
 	conditions = conditions && validMove(x1, y1, x2, y2);
@@ -275,11 +355,36 @@ int move(int x1, int y1, int x2, int y2) {
 	else {
 		int loser = pieceFight(piece, piece2);
 		if (loser == 2) {
+			if (piece->type == KING)
+				return -1;
+			removePiece(piece, &pieces[playerNumber]);
+			removePiece(piece2, &pieces[secondPlayer]);
+		}
+		else {
+			if (loser == 1) {
+				if (piece->type == KING)
+					return 2;
+				removePiece(piece, &pieces[playerNumber]);
+			}
+			else {
+				if (piece2->type == KING)
+					return 1;
+				removePiece(piece2, &pieces[secondPlayer]);
+			}
 		}
 	}
     return 0;
 }
 
+/**
+ * Produces a knight.
+ * @param[in] x1 Peasant's column number.
+ * @param[in] y1 Peasant's row number.
+ * @param[in] x2 New knight's column number.
+ * @param[in] y2 New knight's row number.
+ * @return 42 Move is incorrect or done before second init.
+ * @return 0 Otherwise.
+ */
 int produce_knight(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
 	int secondPlayer = (playerNumber + 1) % 2;
@@ -297,6 +402,15 @@ int produce_knight(int x1, int y1, int x2, int y2) {
     return 0;
 }
 
+/**
+ * Produces a peasant.
+ * @param[in] x1 Peasant's column number.
+ * @param[in] y1 Peasant's row number.
+ * @param[in] x2 New peasant's column number.
+ * @param[in] y2 New peasant's row number.
+ * @return 42 Move is incorrect or done before second init.
+ * @return 0 Otherwise.
+ */
 int produce_peasant(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
 	int secondPlayer = (playerNumber + 1) % 2;
@@ -304,6 +418,8 @@ int produce_peasant(int x1, int y1, int x2, int y2) {
 	conditions = conditions && piece != NULL && canProduce(piece);
 	conditions = conditions && pieceExists(x2, y2, pieces[playerNumber]) == NULL;
 	conditions = conditions && pieceExists(x2, y2, pieces[secondPlayer]) == NULL;
+	conditions = conditions && validPosition(x2, y2);
+	conditions = conditions && validPosition(x1, y1);
 	conditions = conditions && validMove(x1, y1, x2, y2);
 	if (!conditions)
 		return 42;
@@ -312,6 +428,12 @@ int produce_peasant(int x1, int y1, int x2, int y2) {
     return 0;
 }
 
+/**
+ * Ends turn of current player and starts other player's turn.
+ * @return 42 Command done before second init.
+ * @return 1 Turn limit has been achieved.
+ * @return 0 Otherwise.
+ */ 
 int end_turn() {
 	if (initNumber != 2)
 		return 42;
@@ -333,7 +455,13 @@ void printList(PieceList* list) {
 }
 
 int main(){
-    init(15, 5, 1, 1, 1, 1, 10);
+    init(15, 5, 1, 2, 1, 1, 2);
+    init(15, 5, 2, 2, 1, 1, 2);
+    printList(pieces[0]);
+	printf("%d\n",move(2,1,2,2));
+	end_turn();
+	//printf("%d\n",move(4,15,4,16));
+    printList(pieces[1]);
     end_game();
     return 0;
 }
