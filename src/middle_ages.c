@@ -4,7 +4,7 @@
 #include "parse.h"
 #include "engine.h"
 
-int main() {
+/* int main() {
 
     start_game();
 
@@ -28,4 +28,4 @@ int main() {
     end_game();
 
     return 0;
-}
+} */
