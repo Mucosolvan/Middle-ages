@@ -85,6 +85,10 @@ bool canProduce(Piece* piece) {
 	return (piece->type == PEASANT) && (piece->lastMove <= turnNumber - 3);
 }
 
+bool equalPieces(Piece* piece1, Piece* piece2) {
+	return equalPositions(piece2->x, piece2->y, piece1) &&
+	(piece2->type == piece1->type);
+}
 void freePieceList(PieceList* pieceList) {
 	if (pieceList != NULL) {
 		freePieceList(pieceList->next);
@@ -135,6 +139,23 @@ void addPiece(Piece* piece, PieceList** pieceList){
     }
 }
 
+void removePiece(Piece* piece, PieceList** pieceList) {
+	PieceList* list = *pieceList;
+	while (list->next != NULL) {
+		if (equalPieces(piece, list->next->piece)) {
+			PieceList* nextPieceNode;
+			if (list->next->next == NULL)
+				nextPieceNode = NULL;
+			else
+				nextPieceNode = list->next->next;
+			free(list->next->piece);
+			free(list->next);
+			list->next = nextPieceNode;
+			break;
+		}
+		list = list->next;
+	}
+}
 /**
  * Create lists of pieces on the beginning of the game.
  * @param[in] x1 - Column number of the first player's king.
@@ -177,10 +198,6 @@ bool checkEqualInits(int n, int k, int x1, int y1, int x2, int y2) {
 int init(int n, int k, int p, int x1, int y1, int x2, int y2) { 
     if (initNumber > 2)
         return 42;
-	if (!validPosition(x1, y1) || !validPosition(x1 + 3, y1))
-		return 42;
-	if (!validPosition(x2, y2) || !validPosition(x2 + 3, y2))
-		return 42;
 		
     if (initNumber == 0) {
         boardSize = n;
@@ -189,13 +206,21 @@ int init(int n, int k, int p, int x1, int y1, int x2, int y2) {
         kingX2 = x2;
         kingY1 = y1;
         kingY2 = y2;
-
+		
+		if (!validPosition(x1, y1) || !validPosition(x1 + 3, y1))
+			return 42;
+		if (!validPosition(x2, y2) || !validPosition(x2 + 3, y2))
+			return 42;
         createPieceLists(x1, y1, x2, y2);
 		initNumber++;
         return 0;
     }
     else {
 		initNumber++;
+		if (!validPosition(x1, y1) || !validPosition(x1 + 3, y1))
+			return 42;
+		if (!validPosition(x2, y2) || !validPosition(x2 + 3, y2))
+			return 42;
 		if (checkEqualInits(n, k, x1, y1, x2, y2))
 			return 0;
 		else
@@ -249,6 +274,8 @@ int move(int x1, int y1, int x2, int y2) {
 	}
 	else {
 		int loser = pieceFight(piece, piece2);
+		if (loser == 2) {
+		}
 	}
     return 0;
 }
@@ -297,10 +324,16 @@ int end_turn() {
     return 0;
 }
 
+void printList(PieceList* list) {
+	while (list != NULL) {
+		Piece* piece = list->piece;
+		printf("%d %d %d\n",piece->x, piece->y, piece->type);
+		list = list->next;
+	}
+}
+
 int main(){
     init(15, 5, 1, 1, 1, 1, 10);
-    if (pieceExists(2, 10, pieces[1]) != NULL)
-		printf("JEJ");
     end_game();
     return 0;
 }
