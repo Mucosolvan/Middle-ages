@@ -13,7 +13,7 @@ int min(int a, int b) {
 
 enum PieceType {PEASANT = 1, KING, KNIGHT};
 
-//TODO Conditions in functions + fight in move
+//TODO Conditions in functions + fight in move in function
 
 /**
  * Piece knows its coordinates (x - column number, y - row number), type,
@@ -311,6 +311,8 @@ int init(int n, int k, int p, int x1, int y1, int x2, int y2) {
         return 42;
 		
     if (initNumber == 0) {
+		if (n <= 8)
+			return 42;
         boardSize = n;
         turnLimit = k;
         kingX1 = x1;
@@ -517,10 +519,10 @@ void printList(PieceList* list) {
 	}
 }
 
-int main(){
+/* int main(){
     init(15, 5, 1, 2, 1, 1, 2);
     init(15, 5, 2, 2, 1, 1, 2);
-    /* printList(pieces[0]);
+    printList(pieces[0]);
 	printTopLeft();
 	move(2,1,2,2);
 	printTopLeft();
@@ -538,6 +540,6 @@ int main(){
     printTopLeft();
     printf("%d",producePeasant(2,2,2,3));
     printTopLeft();
-    endGame(); */
+    endGame(); 
     return 0;
-}
+} */
