@@ -6,6 +6,8 @@
 #ifndef PARSE_H
 #define PARSE_H
 
+enum commands {INIT, MOVE, PRODUCE_PEASANT, PRODUCE_KNIGHT, END_TURN};
+
 typedef struct command {
 	int commandNumber;
     char* name;

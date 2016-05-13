@@ -69,6 +69,6 @@ int endTurn();
 /**
  * Prints (into stdout) top-left corner of the board of size m x m where m = min(n,10).
  */
-void print_topleft();
+void printTopLeft();
 
 #endif /* ENGINE_H */

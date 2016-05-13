@@ -4,28 +4,86 @@
 #include "parse.h"
 #include "engine.h"
 
-/* int main() {
-
-    start_game();
-
-    command *new_command;
-    while (1) {
-        new_command = parse_command();
-
-        if (strcmp(new_command->name, "INIT") == 0) {
-            init(new_command->data[0],
-                 new_command->data[1],
-                 new_command->data[2],
-                 new_command->data[3],
-                 new_command->data[4],
-                 new_command->data[5],
-                 new_command->data[6]);
-        }
-
-        print_topleft();
+int main() {
+	command * nCommand;
+	while (1) {
+		nCommand = parseCommand();
+		switch (nCommand->commandNumber) {
+			int x;
+			case INIT:
+				x = init(nCommand->data[0],
+					nCommand->data[1],
+					nCommand->data[2],
+					nCommand->data[3],
+					nCommand->data[4],
+					nCommand->data[5],
+					nCommand->data[6]);
+				printTopLeft();
+				if (x == 42) {
+					fprintf(stderr, "input error");
+					return 42;
+				}
+				break;
+			case MOVE:
+				x = move(
+					nCommand->data[0],
+					nCommand->data[1],
+					nCommand->data[2],
+					nCommand->data[3]);
+				printTopLeft();
+				if (x == 42) {
+					fprintf(stderr, "input error");
+					return 42;
+				}
+				if (x == -1) {
+					fprintf(stderr, "draw");
+					return 0;
+				}
+				if (x == 2) {
+					fprintf(stderr, "player 2 won");
+					return 0;
+				}
+				if (x == 1) {
+					fprintf(stderr, "player 1 won");
+					return 0;
+				}
+				break;
+			case PRODUCE_KNIGHT:
+				x = produceKnight(
+					nCommand->data[0],
+					nCommand->data[1],
+					nCommand->data[2],
+					nCommand->data[3]);
+				printTopLeft();
+				if (x == 42) {
+					fprintf(stderr, "input error");
+					return 42;
+				}
+				break;
+			case PRODUCE_PEASANT:
+				x = producePeasant(
+					nCommand->data[0],
+					nCommand->data[1],
+					nCommand->data[2],
+					nCommand->data[3]);
+				printTopLeft();
+				if (x == 42) {
+					fprintf(stderr, "input error");
+					return 42;
+				}
+				break;
+			case END_TURN:
+				x = endTurn();
+				if (x == 42) {
+					fprintf(stderr, "input error");
+					return 42;
+				}
+				if (x == 1) {
+					fprintf(stderr, "draw");
+					return 0;
+				}
+		}
     }
-
-    end_game();
-
+    endGame();
     return 0;
-} */
+} 
