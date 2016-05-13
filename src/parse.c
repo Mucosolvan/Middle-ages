@@ -160,18 +160,3 @@ command* parseCommand() {
 	//	printf("%s\n%d\n",com->name, com->data[4]);
 	return validateCommand(com);
 }
-
-
-int main() {
-	command* x = parseCommand();
-	//command* x = split("Ala 1 7132-312 231322 60000");
-	if (x != NULL) {
-		printf("OK!");
-		//printf("%s\n",x->name);
-		//for (int i = 0; i < 7 ; i++)
-		//	printf("%d ",x->data[i]);
-		free(x->name);
-	}
-	free(x);
-	return 0;
-}

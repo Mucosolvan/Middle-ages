@@ -47,6 +47,8 @@ struct PieceList {
  * 
  * initNumber - Number of initializations that have been done.
  *
+ * player - Number of player in first init. 
+ * 
  * kingX1, kingY1 - Coordinates of first player's king at the beginning.
  * 
  * kingX2, kingY2 - Coordinates of second player's king at the beginning.
@@ -58,7 +60,7 @@ struct PieceList {
  */
  
 int boardSize, turnNumber = 1, turnLimit, playerNumber = 0, initNumber;
-int kingX1, kingY1, kingX2, kingY2;
+int kingX1, kingY1, kingX2, kingY2, player;
 Piece* topLeft[15][15];
 PieceList* pieces[3];
 
@@ -290,8 +292,9 @@ void createPieceLists(int x1, int y1, int x2, int y2){
  * @param[in] x2 - Second player's king column number.
  * @param[in] y2 - Second player's king row number.
  */
-bool checkEqualInits(int n, int k, int x1, int y1, int x2, int y2) {
+bool checkEqualInits(int n, int k, int p, int x1, int y1, int x2, int y2) {
 	bool result = (boardSize == n) && (turnLimit == k);
+	result = result && (3 - p) == player;
 	result = result && (x1 == kingX1) && (x2 == kingX2);
 	result = result && (y1 == kingY1) && (y2 == kingY2);
 	return result;
@@ -311,10 +314,11 @@ int init(int n, int k, int p, int x1, int y1, int x2, int y2) {
         return 42;
 		
     if (initNumber == 0) {
-		if (n <= 8)
+		if (n <= 8 || p != 1 || p != 2)
 			return 42;
         boardSize = n;
         turnLimit = k;
+        player = p;
         kingX1 = x1;
         kingX2 = x2;
         kingY1 = y1;
@@ -334,7 +338,7 @@ int init(int n, int k, int p, int x1, int y1, int x2, int y2) {
 			return 42;
 		if (!validPosition(x2, y2) || !validPosition(x2 + 3, y2))
 			return 42;
-		if (checkEqualInits(n, k, x1, y1, x2, y2))
+		if (checkEqualInits(n, k, p, x1, y1, x2, y2))
 			return 0;
 		else
 			return 42;

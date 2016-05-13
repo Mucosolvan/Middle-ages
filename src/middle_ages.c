@@ -21,6 +21,7 @@ int main() {
 				printTopLeft();
 				if (x == 42) {
 					fprintf(stderr, "input error");
+					endGame();
 					return 42;
 				}
 				break;
@@ -33,18 +34,22 @@ int main() {
 				printTopLeft();
 				if (x == 42) {
 					fprintf(stderr, "input error");
+					endGame();
 					return 42;
 				}
 				if (x == -1) {
 					fprintf(stderr, "draw");
+					endGame();
 					return 0;
 				}
 				if (x == 2) {
 					fprintf(stderr, "player 2 won");
+					endGame();
 					return 0;
 				}
 				if (x == 1) {
 					fprintf(stderr, "player 1 won");
+					endGame();
 					return 0;
 				}
 				break;
@@ -57,6 +62,7 @@ int main() {
 				printTopLeft();
 				if (x == 42) {
 					fprintf(stderr, "input error");
+					endGame();
 					return 42;
 				}
 				break;
@@ -69,6 +75,7 @@ int main() {
 				printTopLeft();
 				if (x == 42) {
 					fprintf(stderr, "input error");
+					endGame();
 					return 42;
 				}
 				break;
@@ -76,10 +83,12 @@ int main() {
 				x = endTurn();
 				if (x == 42) {
 					fprintf(stderr, "input error");
+					endGame();
 					return 42;
 				}
 				if (x == 1) {
 					fprintf(stderr, "draw");
+					endGame();
 					return 0;
 				}
 		}
