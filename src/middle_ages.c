@@ -1,3 +1,8 @@
+ /** @file
+    Implementation of main program.
+
+ */
+ 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -5,14 +10,31 @@
 #include "parse.h"
 #include "engine.h"
 
+/**
+ * Frees a command and ends the game.
+ * @param[in] com Command to free.
+ */
+void freeEverything(command* com) {
+	if (com != NULL)
+		free(com->name);
+	free(com);
+	endGame();
+}
+
+/**
+ * Main program.
+ * Prints on stderr which player won or input error if there was one.
+ * Prints on stdout top left corner of the board.
+ * @return 42 Input is incorrect.
+ * @return 0 One of players won or there was a draw.
+ */
 int main() {
 	command * nCommand;
 	while (1) {
 		nCommand = parseCommand();
 		if (nCommand == NULL) {
 			fprintf(stderr, "input error\n");
-			free(nCommand);
-			endGame();
+			freeEverything(nCommand);
 			return 42;
 		}
 			
@@ -28,9 +50,7 @@ int main() {
 					nCommand->data[6]);
 				if (x == 42) {
 					fprintf(stderr, "input error\n");
-					free(nCommand->name);
-					free(nCommand);
-					endGame();
+					freeEverything(nCommand);
 					return 42;
 				}
 				printTopLeft();
@@ -43,31 +63,23 @@ int main() {
 					nCommand->data[3]);
 				if (x == 42) {
 					fprintf(stderr, "input error\n");
-					free(nCommand->name);
-					free(nCommand);
-					endGame();
+					freeEverything(nCommand);
 					return 42;
 				}
 				printTopLeft();
 				if (x == -1) {
 					fprintf(stderr, "draw\n");
-					free(nCommand->name);
-					free(nCommand);
-					endGame();
+					freeEverything(nCommand);
 					return 0;
 				}
 				if (x == 2) {
 					fprintf(stderr, "player 2 won\n");
-					free(nCommand->name);
-					free(nCommand);
-					endGame();
+					freeEverything(nCommand);
 					return 0;
 				}
 				if (x == 1) {
 					fprintf(stderr, "player 1 won\n");
-					free(nCommand->name);
-					free(nCommand);
-					endGame();
+					freeEverything(nCommand);
 					return 0;
 				}
 				break;
@@ -79,9 +91,7 @@ int main() {
 					nCommand->data[3]);
 				if (x == 42) {
 					fprintf(stderr, "input error\n");
-					free(nCommand->name);
-					free(nCommand);
-					endGame();
+					freeEverything(nCommand);
 					return 42;
 				}
 				printTopLeft();
@@ -94,9 +104,7 @@ int main() {
 					nCommand->data[3]);
 				if (x == 42) {
 					fprintf(stderr, "input error\n");
-					free(nCommand->name);
-					free(nCommand);
-					endGame();
+					freeEverything(nCommand);
 					return 42;
 				}
 				printTopLeft();
@@ -105,16 +113,12 @@ int main() {
 				x = endTurn();
 				if (x == 42) {
 					fprintf(stderr, "input error\n");
-					free(nCommand->name);
-					free(nCommand);
-					endGame();
+					freeEverything(nCommand);
 					return 42;
 				}
 				if (x == 1) {
 					fprintf(stderr, "draw\n");
-					free(nCommand->name);
-					free(nCommand);
-					endGame();
+					freeEverything(nCommand);
 					return 0;
 				}
 		}

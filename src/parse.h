@@ -15,9 +15,11 @@ typedef struct command {
 } command;
 
 
-/** Reads a command.
-  Returns command with data points using 'command' structure.
-  */
+/**
+ * Reads and parses an input to command format.
+ * @return NULL Command was in incorrect format.
+ * @return command* Command was correct.
+ */
 command* parseCommand();
 
 #endif /* PARSE_H */
