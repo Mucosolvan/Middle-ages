@@ -14,13 +14,13 @@ struct command {
 enum commands {INIT, MOVE, PRODUCE_PEASANT, PRODUCE_KNIGHT, END_TURN};
 int parameters[5] = {7, 4, 4, 4, 0};
 
-//valgrind uninitialised values strlen malloc, TOFIX
 int convertToInt(char* number) {
-	if (strlen(number) == 0 || strlen(number) > 10)
+	size_t x = strlen(number); // problem z strlenem invalid read
+	if (x == 0 || x > 10)
 		return -1;
 	long long int result = 0;
 	long long int power = 1;
-	for (int i = strlen(number) - 1; i >= 0; i--) {
+	for (int i = x - 1; i >= 0; i--) {
 		if (number[i] < '0' || number[i] > '9')
 			return -1;
 		result += (number[i] - 48) * power;
@@ -30,14 +30,18 @@ int convertToInt(char* number) {
 		return -1;
 	return result;
 }
+
 void freeCommand(command* com) {
 	if (com != NULL)
 		free(com->name);
 	free(com);
 }
+
 command* split(char* str) {
 	command* com = malloc(sizeof(command));
-	com->name = malloc(20 * sizeof(char));
+	for (int i = 0; i < 7; i++)
+		com->data[i] = 0;
+	com->name = malloc(16 * sizeof(char));
 	int cnt = 0, dataCnt = 0;
 	for (int i = 0; i < strlen(str); i++) {
 		if (str[i] == ' ') {
@@ -47,8 +51,7 @@ command* split(char* str) {
 					return NULL;
 				}
 				strncpy(com->name, str, i);
-				com->name[i + 1] = '\0';
-				//printf("%s\n",com->name);
+				com->name[i] = '\0';
 				cnt = i + 1;
 			}
 			else {
@@ -56,9 +59,9 @@ command* split(char* str) {
 					freeCommand(com);
 					return NULL;
 				}
-				char* tmp = malloc((i - cnt + 2) * sizeof(char));
+				char* tmp = malloc((i - cnt + 3) * sizeof(char)); // problem z strlenem invalid read
 				strncpy(tmp, str + cnt, i - cnt);
-				tmp[i - cnt + 1] = '\0';
+				tmp[i - cnt] = '\0';
 				com->data[dataCnt] = convertToInt(tmp);
 				dataCnt++;
 				cnt = i + 1;
@@ -76,20 +79,18 @@ command* split(char* str) {
 			return NULL;
 		}
 		strncpy(com->name, str, strlen(str) - 1);
-		com->name[strlen(str)] = '\0';
+		com->name[strlen(str) - 1] = '\0';
 	}
 	else {
-		char* tmp = malloc((strlen(str) - cnt + 2) * sizeof(char));
+		char* tmp = malloc((strlen(str) - cnt + 3) * sizeof(char));
 		strncpy(tmp, str + cnt, strlen(str) - 1 - cnt);
-		tmp[strlen(str) - cnt] = '\0';
-		//printf("%s \n",tmp);
+		tmp[strlen(str) - cnt - 1] = '\0';
 		com->data[dataCnt] = convertToInt(tmp);
 		free(tmp);
 	}
 	return com;
 }
 
-//uninitialized values - the same problem as above, with the malloc ;
 command* validateCommand(command* com) {
 	if (com == NULL)
 		return NULL;
@@ -103,17 +104,16 @@ command* validateCommand(command* com) {
 			if (com->data[i] != 0)
 				paramNumber = i + 1;
 	}
-	//printf("%s\n%d\n",com->name, paramNumber);
-	//printf("%d\n",strcmp(com->name, "MOVE"));
 	if (strcmp(com->name, "INIT") == 0) {
 		com->commandNumber = INIT;
-		if (paramNumber != parameters[INIT])
+		if (paramNumber != parameters[INIT]) {
+			freeCommand(com);
 			return NULL;
+		}
 		return com;
 	}
 	else if (strcmp(com->name, "MOVE") == 0) {
 		com->commandNumber = MOVE;
-		//printf("Here %d!\n", paramNumber);
 		if (paramNumber != parameters[MOVE]) {
 			freeCommand(com);
 			return NULL;
@@ -156,7 +156,14 @@ command* parseCommand() {
 	if (strlen(str) > 100)
 		return NULL;
 	command* com = split(str);
-	//if (com != NULL)
-	//	printf("%s\n%d\n",com->name, com->data[4]);
 	return validateCommand(com);
 }
+
+/* int main() {
+	while (1)
+	{
+		if (parseCommand() == NULL)
+			break;
+	}
+	return 0;
+} */

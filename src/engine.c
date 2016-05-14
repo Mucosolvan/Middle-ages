@@ -233,7 +233,8 @@ void removePiece(Piece* piece, PieceList** pieceList) {
 	PieceList* list = *pieceList;
 	if (equalPieces(piece, list->piece)) {
 		*pieceList = list->next;
-		free(list->piece);
+		if (list->piece != NULL)
+			free(list->piece); // invalid read inside of already freed
 		free(list);
 	}
 	else {
@@ -244,7 +245,8 @@ void removePiece(Piece* piece, PieceList** pieceList) {
 					nextPieceNode = NULL;
 				else
 					nextPieceNode = list->next->next;
-				free(list->next->piece);
+				if (list->next->piece != NULL)
+					free(list->next->piece); // invalid read inside of already freed
 				free(list->next);
 				list->next = nextPieceNode;
 				break;
@@ -314,7 +316,7 @@ int init(int n, int k, int p, int x1, int y1, int x2, int y2) {
         return 42;
 		
     if (initNumber == 0) {
-		if (n <= 8 || p != 1 || p != 2)
+		if (n <= 8 || (p != 1 && p != 2) || (abs(x1 - x2) < 8 && abs(y1 - y2) < 8))
 			return 42;
         boardSize = n;
         turnLimit = k;
@@ -368,6 +370,10 @@ Piece* pieceExists(int x, int y, PieceList* list) {
  * @param[in] y2 Second row number.
  */
 bool validMove(int x1, int y1, int x2, int y2) {
+	int c = abs(x1 - x2) + abs(y1 - y2);
+	if (c == 2) {
+		return abs(x1 - x2) == 1 && abs(y1 - y2) == 1;
+	}
 	return abs(x1 - x2) + abs(y1 - y2) == 1;
 }
 
@@ -423,22 +429,31 @@ int move(int x1, int y1, int x2, int y2) {
 	else {
 		int loser = pieceFight(piece, piece2);
 		if (loser == 2) {
+			if (piece->type == KING) {
+				removePiece(piece, &pieces[playerNumber]);
+				removePiece(piece2, &pieces[secondPlayer]);
+				return -1;
+			}
 			removePiece(piece, &pieces[playerNumber]);
 			removePiece(piece2, &pieces[secondPlayer]);
-			if (piece->type == KING)
-				return -1;
 		}
 		else {
 			if (loser == 1) {
-				removePiece(piece, &pieces[playerNumber]);
-				if (piece->type == KING)
-					return 2;
+				if (piece->type == KING) {	
+					removePiece(piece, &pieces[playerNumber]);
+					return secondPlayer + 1;
+				}
+				else 
+					removePiece(piece, &pieces[playerNumber]);
 			}
 			else {
-				removePiece(piece2, &pieces[secondPlayer]);
 				piece = updatePiece(piece, x2, y2, turnNumber);
-				if (piece2->type == KING)
-					return 1;
+				if (piece2->type == KING) {
+					removePiece(piece2, &pieces[secondPlayer]);
+					return playerNumber + 1;
+				}
+				else
+					removePiece(piece2, &pieces[secondPlayer]);
 			}
 		}
 	}
@@ -514,36 +529,3 @@ int endTurn() {
 		return 1;
     return 0;
 }
-
-void printList(PieceList* list) {
-	while (list != NULL) {
-		Piece* piece = list->piece;
-		printf("%d %d %d\n",piece->x, piece->y, piece->type);
-		list = list->next;
-	}
-}
-
-/* int main(){
-    init(15, 5, 1, 2, 1, 1, 2);
-    init(15, 5, 2, 2, 1, 1, 2);
-    printList(pieces[0]);
-	printTopLeft();
-	move(2,1,2,2);
-	printTopLeft();
-	move(5,1,6,1);
-	printTopLeft();
-	endTurn();
-	move(3,2,2,2);
-	printTopLeft();
-    end_game(); 
-    endTurn();
-    endTurn();
-    endTurn();
-    endTurn();
-    endTurn();
-    printTopLeft();
-    printf("%d",producePeasant(2,2,2,3));
-    printTopLeft();
-    endGame(); 
-    return 0;
-} */
