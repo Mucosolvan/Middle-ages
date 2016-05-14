@@ -129,7 +129,8 @@ void printPiece(Piece* piece) {
 }
 
 /**
- * Prints min(10, boardSize) topleft positions of a board.
+ * Prints (into stdout) top-left corner of the board of size 
+  m x m where m = min(n,10).
  */
 void printTopLeft() {
 	int n = min(10, boardSize);
@@ -142,7 +143,7 @@ void printTopLeft() {
 }
 
 /**
- * Free list of pieces.
+ * Frees list of pieces.
  * @param[in] pieceList List to free.
  */
 void freePieceList(PieceList* pieceList) {
@@ -434,6 +435,46 @@ Piece* updatePiece(Piece* piece, int x1, int y1, int turnNumber) {
 	updateTopLeft(piece, ADD);
 	return piece;
 }
+
+/**
+ * Checks if piece can move from (x1, y1) to (x2, y2).
+ * @param[in] piece Piece to check.
+ * @param[in] playerNumber Number of player who owns the piece.
+ * @param[in] x1 Column number before a move.
+ * @param[in] y1 Row number before a move.
+ * @param[in] x2 Column number after a move.
+ * @param[in] y2 Row number after a move.
+ */
+bool checkMoveConditions(Piece* piece, int playerNumber, 
+				int x1, int y1, int x2, int y2) {
+	bool res = (piece != NULL) && canMove(piece);
+	res = res && pieceExists(x2, y2, pieces[playerNumber]) == NULL;
+	res = res && validPosition(x1, y1) && validPosition(x2, y2);
+	res = res && validMove(x1, y1, x2, y2);
+	return res;
+}
+
+/**
+ * Checks if piece can produce another piece from (x1, y1) at (x2, y2).
+ * @param[in] piece Piece to check.
+ * @param[in] playerNumber Number of player who owns the piece.
+ * @param[in] x1 Column number before a move.
+ * @param[in] y1 Row number before a move.
+ * @param[in] x2 Column number after a move.
+ * @param[in] y2 Row number after a move.
+ */
+bool checkProduceConditions(Piece* piece, int playerNumber, 
+				int x1, int y1, int x2, int y2) {
+	int secondPlayer = (playerNumber + 1) % 2;
+	bool res = (piece != NULL) && canProduce(piece);
+	res = res && initNumber == 2;
+	res = res && pieceExists(x2, y2, pieces[playerNumber]) == NULL;
+	res = res && pieceExists(x2, y2, pieces[secondPlayer]) == NULL;
+	res = res && validPosition(x1, y1) && validPosition(x2, y2);
+	res = res && validMove(x1, y1, x2, y2);
+	return res;
+}
+
 /**
  * Makes a move.
  * @param[in] x1 Column number before a move.
@@ -450,13 +491,7 @@ int move(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
 	int secondPlayer = (playerNumber + 1) % 2;
 	Piece* piece2 = pieceExists(x2, y2, pieces[secondPlayer]);
-	bool conditions = initNumber == 2;
-	conditions = conditions && piece != NULL && canMove(piece);
-	conditions = conditions && pieceExists(x2, y2, pieces[playerNumber]) == NULL;
-	conditions = conditions && validPosition(x2, y2);
-	conditions = conditions && validPosition(x1, y1);
-	conditions = conditions && validMove(x1, y1, x2, y2);
-	if (!conditions)
+	if (!checkMoveConditions(piece, playerNumber, x1, y1, x2, y2))
 		return 42;
 	if (piece2 == NULL) {
 		piece = updatePiece(piece, x2, y2, turnNumber);
@@ -464,32 +499,25 @@ int move(int x1, int y1, int x2, int y2) {
 	else {
 		int loser = pieceFight(piece, piece2);
 		if (loser == 2) {
-			if (piece->type == KING) {
-				removePiece(piece, &pieces[playerNumber]);
-				removePiece(piece2, &pieces[secondPlayer]);
-				return -1;
-			}
+			PieceType type = piece->type;
 			removePiece(piece, &pieces[playerNumber]);
 			removePiece(piece2, &pieces[secondPlayer]);
+			if (type == KING)
+				return -1;
 		}
 		else {
 			if (loser == 1) {
-				if (piece->type == KING) {	
-					removePiece(piece, &pieces[playerNumber]);
+				PieceType type = piece->type;
+				removePiece(piece, &pieces[playerNumber]);
+				if (type == KING)
 					return secondPlayer + 1;
-				}
-				else 
-					removePiece(piece, &pieces[playerNumber]);
 			}
 			else {
-				if (piece2->type == KING) {
-					removePiece(piece2, &pieces[secondPlayer]);
-					piece = updatePiece(piece, x2, y2, turnNumber);
-					return playerNumber + 1;
-				}
-				else
-					removePiece(piece2, &pieces[secondPlayer]);
+				PieceType type = piece2->type;
+				removePiece(piece2, &pieces[secondPlayer]);
 				piece = updatePiece(piece, x2, y2, turnNumber);
+				if (type == KING) 
+					return playerNumber + 1;
 			}
 		}
 	}
@@ -507,15 +535,7 @@ int move(int x1, int y1, int x2, int y2) {
  */
 int produceKnight(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
-	int secondPlayer = (playerNumber + 1) % 2;
-	bool conditions = initNumber == 2;
-	conditions = conditions && piece != NULL && canProduce(piece);
-	conditions = conditions && pieceExists(x2, y2, pieces[playerNumber]) == NULL;
-	conditions = conditions && pieceExists(x2, y2, pieces[secondPlayer]) == NULL;
-	conditions = conditions && validPosition(x2, y2);
-	conditions = conditions && validPosition(x1, y1);
-	conditions = conditions && validMove(x1, y1, x2, y2);
-	if (!conditions)
+	if (!checkProduceConditions(piece, playerNumber, x1, y1, x2, y2))
 		return 42;
 	Piece* newPiece = createPiece(x2, y2, KNIGHT, playerNumber, turnNumber);
 	addPiece(newPiece, &pieces[playerNumber]);
@@ -533,15 +553,7 @@ int produceKnight(int x1, int y1, int x2, int y2) {
  */
 int producePeasant(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
-	int secondPlayer = (playerNumber + 1) % 2;
-	bool conditions = initNumber == 2;
-	conditions = conditions && piece != NULL && canProduce(piece);
-	conditions = conditions && pieceExists(x2, y2, pieces[playerNumber]) == NULL;
-	conditions = conditions && pieceExists(x2, y2, pieces[secondPlayer]) == NULL;
-	conditions = conditions && validPosition(x2, y2);
-	conditions = conditions && validPosition(x1, y1);
-	conditions = conditions && validMove(x1, y1, x2, y2);
-	if (!conditions)
+	if (!checkProduceConditions(piece, playerNumber, x1, y1, x2, y2))
 		return 42;
 	Piece* newPiece = createPiece(x2, y2, PEASANT, playerNumber, turnNumber);
 	addPiece(newPiece, &pieces[playerNumber]);

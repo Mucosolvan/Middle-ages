@@ -15,6 +15,7 @@ void endGame();
  * Initializes a game.
  * @param[in] n Board size.
  * @param[in] k Number of turns.
+ * @param[in] p Player number.
  * @param[in] x1 First player's king column number.
  * @param[in] y1 First player's king row number.
  * @param[in] x2 Second player's king column number.

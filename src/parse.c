@@ -36,12 +36,12 @@ int parameters[5] = {7, 4, 4, 4, 0};
  * @return int Number.
  */
 int convertToInt(char* number) {
-	size_t x = strlen(number);
-	if (x == 0 || x > 10)
+	size_t length = strlen(number);
+	if (length == 0 || length > 10)
 		return -1;
 	long long int result = 0;
 	long long int power = 1;
-	for (int i = x - 1; i >= 0; i--) {
+	for (int i = length - 1; i >= 0; i--) {
 		if (number[i] < '0' || number[i] > '9')
 			return -1;
 		result += (number[i] - 48) * power;
@@ -74,6 +74,8 @@ command* split(char* str) {
 	for (int i = 0; i < 7; i++)
 		com->data[i] = 0;
 	com->name = malloc(16 * sizeof(char));
+	//cnt - first position in string of new parameter
+	//dataCnt - how many integer parameters there were
 	int cnt = 0, dataCnt = 0;
 	for (int i = 0; i < strlen(str); i++) {
 		if (str[i] == ' ') {
