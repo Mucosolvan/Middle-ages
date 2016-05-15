@@ -133,9 +133,9 @@ void printPiece(Piece* piece) {
   m x m where m = min(n,10).
  */
 void printTopLeft() {
-	int n = min(10, boardSize);
-	for (int i = 1; i <= n; i++) {
-		for (int j = 1; j <= n; j++)
+	int m = min(10, boardSize);
+	for (int i = 1; i <= m; i++) {
+		for (int j = 1; j <= m; j++)
 			printPiece(topLeft[j][i]);
 		printf("\n");
 	}
@@ -156,7 +156,7 @@ void freePieceList(PieceList* pieceList) {
 }
 
 /**
- * Frees lists of pieces.
+ * Frees memory after finishing the game.
  */
 void endGame() {
     freePieceList(pieces[0]);
@@ -292,7 +292,7 @@ void createPieceLists(int x1, int y1, int x2, int y2){
 }
 
 /**
- * Checks if parametres given in both inits are equal.
+ * Checks if parametres given in both inits are equal/valid.
  * @param[in] n Board size.
  * @param[in] k Number of turns.
  * @param[in] p Player number.
@@ -310,7 +310,7 @@ bool checkEqualInits(int n, int k, int p, int x1, int y1, int x2, int y2) {
 }
 
 /**
- * Checks if king's positions are valid.
+ * Checks if positions of kings are valid.
  * @param[in] x1 First player's king column number.
  * @param[in] y1 First player's king row number.
  * @param[in] x2 Second player's king column number.
@@ -421,7 +421,7 @@ int pieceFight(Piece* piece1, Piece* piece2) {
 }
 
 /**
- * Updates piece attributes.
+ * Updates piece attributes after moving/producing.
  * @param[in] piece Piece to update.
  * @param[in] x1 New row number.
  * @param[in] y1 New column number.
@@ -494,7 +494,7 @@ int move(int x1, int y1, int x2, int y2) {
 	if (!checkMoveConditions(piece, playerNumber, x1, y1, x2, y2))
 		return 42;
 	if (piece2 == NULL) {
-		piece = updatePiece(piece, x2, y2, turnNumber);
+		updatePiece(piece, x2, y2, turnNumber);
 	}
 	else {
 		int loser = pieceFight(piece, piece2);
@@ -515,7 +515,7 @@ int move(int x1, int y1, int x2, int y2) {
 			else {
 				PieceType type = piece2->type;
 				removePiece(piece2, &pieces[secondPlayer]);
-				piece = updatePiece(piece, x2, y2, turnNumber);
+				updatePiece(piece, x2, y2, turnNumber);
 				if (type == KING) 
 					return playerNumber + 1;
 			}
@@ -537,6 +537,7 @@ int produceKnight(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
 	if (!checkProduceConditions(piece, playerNumber, x1, y1, x2, y2))
 		return 42;
+	updatePiece(piece, x1, y1, turnNumber);
 	Piece* newPiece = createPiece(x2, y2, KNIGHT, playerNumber, turnNumber);
 	addPiece(newPiece, &pieces[playerNumber]);
     return 0;
@@ -555,6 +556,7 @@ int producePeasant(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
 	if (!checkProduceConditions(piece, playerNumber, x1, y1, x2, y2))
 		return 42;
+	updatePiece(piece, x1, y1, turnNumber);
 	Piece* newPiece = createPiece(x2, y2, PEASANT, playerNumber, turnNumber);
 	addPiece(newPiece, &pieces[playerNumber]);
     return 0;

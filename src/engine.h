@@ -7,7 +7,7 @@
 #define ENGINE_H
 
 /**
- * Frees memory. Needed after finishing game.
+ * Frees memory after finishing the game.
  */
 void endGame();
 
@@ -68,7 +68,8 @@ int producePeasant(int x1, int y1, int x2, int y2);
 int endTurn();
 
 /**
- * Prints (into stdout) top-left corner of the board of size m x m where m = min(n,10).
+ * Prints (into stdout) top-left corner of the board of size 
+  m x m where m = min(n,10).
  */
 void printTopLeft();
 
