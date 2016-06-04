@@ -444,6 +444,7 @@ Piece* updatePiece(Piece* piece, int x1, int y1, int turnNumber) {
 bool checkMoveConditions(Piece* piece, int playerNumber, 
 				int x1, int y1, int x2, int y2) {
 	bool res = (piece != NULL) && canMove(piece);
+	res = res && initNumber == 1;
 	res = res && pieceExists(x2, y2, pieces[playerNumber]) == NULL;
 	res = res && validPosition(x1, y1) && validPosition(x2, y2);
 	res = res && validMove(x1, y1, x2, y2);
