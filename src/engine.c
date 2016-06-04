@@ -353,8 +353,8 @@ void setVariables(int n, int k, int p, int x1, int y1, int x2, int y2) {
  * @param[in] y2 Second player's king row number.
  */
 int init(int n, int k, int p, int x1, int y1, int x2, int y2) { 
-    if (initNumber > 2)
-        return 42;
+    // if (initNumber > 2)
+    //    return 42;
 		
     if (initNumber == 0) {
 		if (n <= 8 || (p != 1 && p != 2))
@@ -368,11 +368,7 @@ int init(int n, int k, int p, int x1, int y1, int x2, int y2) {
         return 0;
     }
     else {
-		initNumber++;
-		if (checkEqualInits(n, k, p, x1, y1, x2, y2))
-			return 0;
-		else
-			return 42;
+		return 42;
     }
 }
 
@@ -467,7 +463,7 @@ bool checkProduceConditions(Piece* piece, int playerNumber,
 				int x1, int y1, int x2, int y2) {
 	int secondPlayer = (playerNumber + 1) % 2;
 	bool res = (piece != NULL) && canProduce(piece);
-	res = res && initNumber == 2;
+	res = res && initNumber == 1;
 	res = res && pieceExists(x2, y2, pieces[playerNumber]) == NULL;
 	res = res && pieceExists(x2, y2, pieces[secondPlayer]) == NULL;
 	res = res && validPosition(x1, y1) && validPosition(x2, y2);
@@ -569,7 +565,7 @@ int producePeasant(int x1, int y1, int x2, int y2) {
  * @return 0 Otherwise.
  */ 
 int endTurn() {
-	if (initNumber != 2)
+	if (initNumber != 1)
 		return 42;
 	playerNumber++;
 	playerNumber %= 2;

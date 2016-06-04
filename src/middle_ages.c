@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "parse.h"
 #include "engine.h"
@@ -29,11 +30,12 @@ void freeEverything(command* com) {
  * @return 0 One of players won or there was a draw.
  */
 int main() {
+	int player = 0;
 	command * nCommand;
 	while (1) {
 		nCommand = parseCommand();
 		if (nCommand == NULL) {
-			fprintf(stderr, "input error\n");
+			// fprintf(stderr, "input error\n");
 			freeEverything(nCommand);
 			return 42;
 		}
@@ -41,6 +43,7 @@ int main() {
 		switch (nCommand->commandNumber) {
 			int x;
 			case INIT:
+				player = nCommand->data[2];
 				x = init(nCommand->data[0],
 					nCommand->data[1],
 					nCommand->data[2],
@@ -49,11 +52,15 @@ int main() {
 					nCommand->data[5],
 					nCommand->data[6]);
 				if (x == 42) {
-					fprintf(stderr, "input error\n");
+					// fprintf(stderr, "input error1\n");
 					freeEverything(nCommand);
 					return 42;
 				}
-				printTopLeft();
+				if (player == 1) {
+					printf("END_TURN\n");
+					fflush(stdout);
+					x = endTurn();
+				}
 				break;
 			case MOVE:
 				x = move(
@@ -62,25 +69,22 @@ int main() {
 					nCommand->data[2],
 					nCommand->data[3]);
 				if (x == 42) {
-					fprintf(stderr, "input error\n");
 					freeEverything(nCommand);
 					return 42;
 				}
-				printTopLeft();
 				if (x == -1) {
-					fprintf(stderr, "draw\n");
 					freeEverything(nCommand);
-					return 0;
+					return 1;
 				}
 				if (x == 2) {
-					fprintf(stderr, "player 2 won\n");
 					freeEverything(nCommand);
-					return 0;
+					if (player == 2) return 0;
+					return 2;
 				}
 				if (x == 1) {
-					fprintf(stderr, "player 1 won\n");
 					freeEverything(nCommand);
-					return 0;
+					if (player == 1) return 0;
+					return 2;
 				}
 				break;
 			case PRODUCE_KNIGHT:
@@ -90,11 +94,9 @@ int main() {
 					nCommand->data[2],
 					nCommand->data[3]);
 				if (x == 42) {
-					fprintf(stderr, "input error\n");
 					freeEverything(nCommand);
 					return 42;
 				}
-				printTopLeft();
 				break;
 			case PRODUCE_PEASANT:
 				x = producePeasant(
@@ -103,23 +105,30 @@ int main() {
 					nCommand->data[2],
 					nCommand->data[3]);
 				if (x == 42) {
-					fprintf(stderr, "input error\n");
 					freeEverything(nCommand);
 					return 42;
 				}
-				printTopLeft();
 				break;
 			case END_TURN:
 				x = endTurn();
 				if (x == 42) {
-					fprintf(stderr, "input error\n");
 					freeEverything(nCommand);
 					return 42;
 				}
 				if (x == 1) {
-					fprintf(stderr, "draw\n");
 					freeEverything(nCommand);
-					return 0;
+					return 1;
+				}
+				printf("END_TURN\n");
+				fflush(stdout);
+				x = endTurn();
+				if (x == 42) {
+					freeEverything(nCommand);
+					return 42;
+				}
+				if (x == 1) {
+					freeEverything(nCommand);
+					return 1;
 				}
 		}
 		free(nCommand->name);
