@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 2.8)
 project(middle_ages C)
 
+find_program (Ctest_move_MEMORYCHECK_COMMAND NAMES valgrind)
+find_library (CMOCKA cmocka)
+
+if (NOT CMOCKA)
+    message (FATAL_ERROR "Could not find cmocka.")
+endif ()
+
 # deklarujemy opcję DEBUG, domyślnie wyłączoną (opcję można włączyć przez argument -DDEBUG=ON)
 option (DEBUG OFF)
 
@@ -37,3 +44,15 @@ if(DOXYGEN_FOUND)
             COMMENT "Generating API documentation with Doxygen"
             )
 endif(DOXYGEN_FOUND)
+
+enable_testing ()
+
+add_executable (middle_ages_tests src/middle_ages_tests.c ${SOURCE_FILES})
+set_target_properties (
+    middle_ages_tests
+    PROPERTIES
+    COMPILE_DEFINITIONS UNIT_TESTING=1
+    COMPILE_FLAGS "-Wall -pedantic -g")
+
+target_link_libraries (middle_ages_tests ${CMOCKA})
+add_test (middle_ages_tests ${CMAKE_CURRENT_BINARY_DIR}/middle_ages_tests)

@@ -19,8 +19,16 @@ int min(int a, int b) {
 	return (a < b) ? a : b;
 }
 
+/**
+ * Returns maximum of two numbers.
+ */
+int max(int a, int b) {
+	return (a < b) ? b : a;
+}
+
 enum PieceType {PEASANT = 1, KING, KNIGHT};
 enum AddDelete {ADD, DELETE};
+enum MoveType {PRODUCE_K, PRODUCE_P, MOVE};
 
 /**
  * Piece structure.
@@ -41,6 +49,9 @@ struct PieceList {
     PieceList* next; /**< Pointer to next piece on the list. */
 };
 
+extern Piece BoardPiece;
+
+bool firstProduce = true;
 int boardSize; /**< Size of the board. */ 
 int turnNumber = 1; /**< Current turn number. */
 int turnLimit; /**< Maximum number of turns. */
@@ -60,7 +71,7 @@ int playerNumber = 0;
 Piece* topLeft[15][15];
 
 /** pieces[i] - List of pieces of i-th player. */
-PieceList* pieces[3];
+PieceList* pieces[3] = {NULL,NULL,NULL};
 
 /**
  * Checks if position (x,y) is valid (on the board).
@@ -161,6 +172,11 @@ void freePieceList(PieceList* pieceList) {
 void endGame() {
     freePieceList(pieces[0]);
     freePieceList(pieces[1]);
+    initNumber = 0;
+    player = 0;
+    pieces[0] = NULL;
+    pieces[1] = NULL;
+    playerNumber = 0;
 }
 
 /**
@@ -335,7 +351,7 @@ bool validBeginningPositions(int x1, int y1, int x2, int y2) {
 void setVariables(int n, int k, int p, int x1, int y1, int x2, int y2) {
 	boardSize = n;
     turnLimit = k;
-    player = p;
+    player = p - 1;
     kingX1 = x1;
     kingX2 = x2;
     kingY1 = y1;
@@ -353,9 +369,7 @@ void setVariables(int n, int k, int p, int x1, int y1, int x2, int y2) {
  * @param[in] y2 Second player's king row number.
  */
 int init(int n, int k, int p, int x1, int y1, int x2, int y2) { 
-    // if (initNumber > 2)
-    //    return 42;
-		
+	
     if (initNumber == 0) {
 		if (n <= 8 || (p != 1 && p != 2))
 			return 42;
@@ -365,7 +379,7 @@ int init(int n, int k, int p, int x1, int y1, int x2, int y2) {
 			return 42;
         createPieceLists(x1, y1, x2, y2);
 		initNumber++;
-        return 0;
+        return 47;
     }
     else {
 		return 42;
@@ -479,17 +493,18 @@ bool checkProduceConditions(Piece* piece, int playerNumber,
  * @param[in] x2 Column number after a move.
  * @param[in] y2 Row number before a move.
  * @return 42 Move is incorrect or done before second init.
- * @return 1 By doing this move first player won.
- * @return 2 By doing this move second player won.
- * @return -1 By doing this move players drew.
- * @return 0 Otherwise.
+ * @return 0 By doing this move AI won.
+ * @return 2 By doing this move AI lost.
+ * @return 1 By doing this move players drew.
+ * @return 47 Otherwise.
  */
 int move(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
 	int secondPlayer = (playerNumber + 1) % 2;
 	Piece* piece2 = pieceExists(x2, y2, pieces[secondPlayer]);
-	if (!checkMoveConditions(piece, playerNumber, x1, y1, x2, y2))
+	if (!checkMoveConditions(piece, playerNumber, x1, y1, x2, y2)) {
 		return 42;
+	}
 	if (piece2 == NULL) {
 		updatePiece(piece, x2, y2, turnNumber);
 	}
@@ -500,25 +515,31 @@ int move(int x1, int y1, int x2, int y2) {
 			removePiece(piece, &pieces[playerNumber]);
 			removePiece(piece2, &pieces[secondPlayer]);
 			if (type == KING)
-				return -1;
+				return 1;
 		}
 		else {
 			if (loser == 1) {
 				PieceType type = piece->type;
 				removePiece(piece, &pieces[playerNumber]);
 				if (type == KING)
-					return secondPlayer + 1;
+					if (secondPlayer == player)
+						return 0;
+					else
+						return 2;
 			}
 			else {
 				PieceType type = piece2->type;
 				removePiece(piece2, &pieces[secondPlayer]);
 				updatePiece(piece, x2, y2, turnNumber);
 				if (type == KING) 
-					return playerNumber + 1;
+					if (playerNumber == player)
+						return 0;
+					else 
+						return 2;
 			}
 		}
 	}
-    return 0;
+    return 47;
 }
 
 /**
@@ -527,8 +548,8 @@ int move(int x1, int y1, int x2, int y2) {
  * @param[in] y1 Peasant's row number.
  * @param[in] x2 New knight's column number.
  * @param[in] y2 New knight's row number.
- * @return 42 Move is incorrect or done before second init.
- * @return 0 Otherwise.
+ * @return 42 Move is incorrect.
+ * @return 47 Otherwise.
  */
 int produceKnight(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
@@ -537,7 +558,7 @@ int produceKnight(int x1, int y1, int x2, int y2) {
 	updatePiece(piece, x1, y1, turnNumber);
 	Piece* newPiece = createPiece(x2, y2, KNIGHT, playerNumber, turnNumber);
 	addPiece(newPiece, &pieces[playerNumber]);
-    return 0;
+    return 47;
 }
 
 /**
@@ -546,8 +567,8 @@ int produceKnight(int x1, int y1, int x2, int y2) {
  * @param[in] y1 Peasant's row number.
  * @param[in] x2 New peasant's column number.
  * @param[in] y2 New peasant's row number.
- * @return 42 Move is incorrect or done before second init.
- * @return 0 Otherwise.
+ * @return 42 Move is incorrect.
+ * @return 47 Otherwise.
  */
 int producePeasant(int x1, int y1, int x2, int y2) {
 	Piece* piece = pieceExists(x1, y1, pieces[playerNumber]);
@@ -556,14 +577,41 @@ int producePeasant(int x1, int y1, int x2, int y2) {
 	updatePiece(piece, x1, y1, turnNumber);
 	Piece* newPiece = createPiece(x2, y2, PEASANT, playerNumber, turnNumber);
 	addPiece(newPiece, &pieces[playerNumber]);
-    return 0;
+    return 47;
 }
 
+
+/** 
+ * Purely for testing - sets global variables.
+ */
+void prepare() {
+	initNumber = 1;
+	boardSize = 10;
+	turnLimit = 6;
+	player = 0;
+}
+
+/** 
+ * Purely for testing - adds a piece to the list.
+ */
+bool putPiece(int x, int y, int type, int player) {
+	Piece* piece = createPiece(x, y, type, player - 1, 1);
+	addPiece(piece, &pieces[player - 1]);
+	return pieces[player - 1] != NULL;
+}
+
+/**
+ * Purely for testing - frees a piece.
+ */
+void freePiece(Piece* piece) {
+	if (piece != NULL)
+		free(piece);
+}
 /**
  * Ends turn of current player and starts other player's turn.
  * @return 42 Command done before second init.
  * @return 1 Turn limit has been achieved.
- * @return 0 Otherwise.
+ * @return 47 Otherwise.
  */ 
 int endTurn() {
 	if (initNumber != 1)
@@ -574,5 +622,148 @@ int endTurn() {
 		turnNumber++;
 	if (turnNumber > turnLimit)
 		return 1;
-    return 0;
+    return 47;
+}
+
+/**
+ * Returns a distance between two pieces.
+ * @param[in] piece1 First piece.
+ * @param[in] piece2 Second piece.
+ * @return int Distance between pieces.
+ */
+int distance(Piece* piece1, Piece* piece2) {
+	return max(abs(piece1->x - piece2->x), abs(piece1->y - piece2->y));
+}
+
+/**
+ * Returns a distance between two sets of coordinates.
+ * @return int Distance between coordinates.
+ */
+int distanceCoordinates(int x1, int y1, int x2, int y2) {
+	return max(abs(x1 - x2), abs(y1 - y2));
+}
+
+/**
+ * Finds piece on the list that is closest to our given piece.
+ * If there is more than one piece - chooses one closest to our king.
+ * @param[in] piece Given piece.
+ * @param[in] king King.
+ * @param[in] list List on where we find another piece.
+ * @return Piece* Closest piece on the list.
+ */
+Piece* chooseClosestPiece(Piece* piece, Piece* king, PieceList* list) {
+	Piece* closestPiece = NULL;
+	int minDistance = boardSize;
+	while (list != NULL) {
+		int dist = distance(piece, list->piece);
+		if (dist < minDistance) {
+			minDistance = dist;
+			closestPiece = list->piece;
+		}
+		else {
+			if (dist == minDistance) {
+				if (distance(king, closestPiece) > distance(king, list->piece))
+					closestPiece = list->piece;
+			}
+		}
+		list = list->next;
+	}
+	return closestPiece;
+}
+
+/**
+ * Makes a move that will decrease distance between two given pieces.
+ * @param[in] piece1 Our piece that makes a move.
+ * @param[in] piece2 Opponent's piece.
+ * @param[in] flag Flag denotes whether we move or produce a piece.
+ * @return 47 Move made correctly, game continues.
+ * @return 42 Move was incorrect.
+ * @return 0 By doing this move AI won.
+ * @return 1 By doing this move there was a draw.
+ * @return 2 By doing this move AI lost.
+ */
+int findDirectionAndMove(Piece* piece1, Piece* piece2, int flag) {
+	
+	int X[3];
+	int Y[3];
+	int i, j, cnt = 0;
+	int nowDist = distance(piece1, piece2);
+	int exitCode = 47;
+	for (i = -1; i <= 1; i++) {
+		for (j = -1; j <= 1; j++) {
+			int dist = distanceCoordinates(piece1->x + i, piece1->y + j, piece2->x, piece2->y);
+			if (dist < nowDist) {
+				X[cnt] = i;
+				Y[cnt] = j;
+				cnt++;
+			}
+		}
+	}
+	
+	for (i = 0; i < cnt; i++) {
+		
+		int x = piece1->x;
+		int y = piece1->y;
+		if (flag == PRODUCE_K) {
+			exitCode = produceKnight(x, y, x + X[i], y + Y[i]);
+			if (exitCode != 42) {
+				printf("PRODUCE_KNIGHT %d %d %d %d\n", x, y, x + X[i], y + Y[i]);
+				fflush(stdout);
+				return exitCode;
+			}
+		}
+		
+		if (flag == PRODUCE_P) {
+			exitCode = producePeasant(x, y, x + X[i], y + Y[i]);
+			if (exitCode != 42) {
+				printf("PRODUCE_PEASANT %d %d %d %d\n", x, y, x + X[i], y + Y[i]);
+				fflush(stdout);
+				return exitCode;
+			}
+		}
+		
+		if (flag == MOVE) {
+			exitCode = move(x, y, x + X[i], y + Y[i]);
+			if (exitCode != 42) {
+				printf("MOVE %d %d %d %d\n", x, y, x + X[i], y + Y[i]);
+				fflush(stdout);
+				return exitCode;
+			}
+		} 
+	}
+	return exitCode;
+}
+
+/**
+ * AI makes the best move by given strategy.
+ */
+int makeMove() {
+	PieceList* firstList = pieces[player];
+	PieceList* secondList = pieces[(player + 1) % 2];
+	Piece* king = firstList->piece;
+	int exitCode = 47;
+	firstList = firstList->next;
+	while (firstList != NULL && exitCode == 47) {
+		Piece* piece = firstList->piece;
+		Piece* closestPiece = chooseClosestPiece(piece, king, secondList);
+		if (canProduce(piece)) {
+			if (firstProduce) {
+				exitCode = findDirectionAndMove(piece, closestPiece, PRODUCE_P);
+				firstProduce = false;
+			}
+			else {
+				exitCode = findDirectionAndMove(piece, closestPiece, PRODUCE_K);
+			}
+		}
+		else if (piece->type == KNIGHT && canMove(piece)) {
+			exitCode = findDirectionAndMove(piece, closestPiece, MOVE);
+		}
+		firstList = firstList->next;
+	}
+	if (exitCode == 47) {
+		exitCode = endTurn();
+		printf("END_TURN\n");
+	}
+	fflush(stdout);
+	return exitCode;
 }

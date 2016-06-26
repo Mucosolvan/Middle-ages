@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "utils.h"
 #include "parse.h"
 #include "engine.h"
 
@@ -32,108 +33,62 @@ void freeEverything(command* com) {
 int main() {
 	int player = 0;
 	command * nCommand;
-	while (1) {
+	int exitCode = 47;
+	while (exitCode == 47) {
 		nCommand = parseCommand();
 		if (nCommand == NULL) {
-			// fprintf(stderr, "input error\n");
-			freeEverything(nCommand);
-			return 42;
+			exitCode = 42;
+			break;
 		}
-			
+		
 		switch (nCommand->commandNumber) {
-			int x;
 			case INIT:
 				player = nCommand->data[2];
-				x = init(nCommand->data[0],
+				exitCode = init(nCommand->data[0],
 					nCommand->data[1],
 					nCommand->data[2],
 					nCommand->data[3],
 					nCommand->data[4],
 					nCommand->data[5],
 					nCommand->data[6]);
-				if (x == 42) {
-					// fprintf(stderr, "input error1\n");
-					freeEverything(nCommand);
-					return 42;
-				}
-				if (player == 1) {
-					printf("END_TURN\n");
-					fflush(stdout);
-					x = endTurn();
+				
+				if (player == 1 && exitCode == 47) {
+					makeMove();
+					// exitCode = endTurn();
 				}
 				break;
 			case MOVE:
-				x = move(
+				exitCode = move(
 					nCommand->data[0],
 					nCommand->data[1],
 					nCommand->data[2],
 					nCommand->data[3]);
-				if (x == 42) {
-					freeEverything(nCommand);
-					return 42;
-				}
-				if (x == -1) {
-					freeEverything(nCommand);
-					return 1;
-				}
-				if (x == 2) {
-					freeEverything(nCommand);
-					if (player == 2) return 0;
-					return 2;
-				}
-				if (x == 1) {
-					freeEverything(nCommand);
-					if (player == 1) return 0;
-					return 2;
-				}
+					
 				break;
 			case PRODUCE_KNIGHT:
-				x = produceKnight(
+				exitCode = produceKnight(
 					nCommand->data[0],
 					nCommand->data[1],
 					nCommand->data[2],
 					nCommand->data[3]);
-				if (x == 42) {
-					freeEverything(nCommand);
-					return 42;
-				}
 				break;
 			case PRODUCE_PEASANT:
-				x = producePeasant(
+				exitCode = producePeasant(
 					nCommand->data[0],
 					nCommand->data[1],
 					nCommand->data[2],
 					nCommand->data[3]);
-				if (x == 42) {
-					freeEverything(nCommand);
-					return 42;
-				}
 				break;
 			case END_TURN:
-				x = endTurn();
-				if (x == 42) {
-					freeEverything(nCommand);
-					return 42;
+				exitCode = endTurn();
+				if (exitCode == 47) {
+					exitCode = makeMove();
 				}
-				if (x == 1) {
-					freeEverything(nCommand);
-					return 1;
-				}
-				printf("END_TURN\n");
-				fflush(stdout);
-				x = endTurn();
-				if (x == 42) {
-					freeEverything(nCommand);
-					return 42;
-				}
-				if (x == 1) {
-					freeEverything(nCommand);
-					return 1;
-				}
+				break;
 		}
 		free(nCommand->name);
 		free(nCommand);
     }
     endGame();
-    return 0;
+    return exitCode;
 }

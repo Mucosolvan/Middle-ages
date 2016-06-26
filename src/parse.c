@@ -8,6 +8,8 @@
 #include <limits.h>
 #include <string.h>
 
+#include "utils.h"
+
 typedef struct command command;
 
 /**

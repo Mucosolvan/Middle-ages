@@ -6,6 +6,30 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+typedef struct Piece Piece;
+typedef struct PieceList PieceList;
+typedef enum PieceType PieceType;
+enum PieceType {PEASANT = 1, KING, KNIGHT};
+
+/**
+ * Piece structure.
+ */
+struct Piece {
+    int x; /**< Column number. */
+    int y; /**< Row number. */
+    int lastMove; /**< Last turn piece moved. */
+    int player; /**< Player who owns the piece. */
+    PieceType type; /**< Type of the piece. */
+};
+
+/**
+ * List of pieces.
+ */
+struct PieceList {
+    Piece* piece; /**< Piece. */
+    PieceList* next; /**< Pointer to next piece on the list. */
+};
+
 /**
  * Frees memory after finishing the game.
  */
@@ -73,4 +97,5 @@ int endTurn();
  */
 void printTopLeft();
 
+int makeMove();
 #endif /* ENGINE_H */

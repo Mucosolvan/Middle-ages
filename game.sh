@@ -1,551 +1,348 @@
 #!/bin/bash
 
-FLAG=(0 0 0 0 0)
-MAX_INT=2147483647
-BOARD_SIZE=10
-TURN_LIMIT=100
-DELAY=1
-POS1=0,0
-POS2=0,0
-AI1_PATH=""
-AI2_PATH=""
-POS1_X=0
-POS1_Y=0
-POS2_X=0
-POS2_Y=0
-GUARD="79.867451263456124366124261345"
+############
+# defaults #
+############
 
+N=10
+K=100
+S=1
+P1=
+P2=
+AI1=
+AI2=
 
-function randomNumber () {
-	local A=$1
-	local B=$2
-	
-	local X1=$((RANDOM<<15))
-	X1=$((X1 + $RANDOM))
-	echo $((X1%(B - A + 1) + A))
-}
+#########################
+# parsing argument list #
+#########################
 
-function checkLimits () {
-	local VAR=$1
-	local LOWER_LIMIT=$2
-	local UPPER_LIMIT=$3
-	
-	if (( VAR >= LOWER_LIMIT && VAR <= UPPER_LIMIT )); then
-		return 1
-	else
-		return 0
-	fi
-}
-
-function secondPositionAvailable () {
-	local X=$1
-	local Y=$2
-	local SIZE=$3
-	
-	if ! (( X + 8 <= SIZE - 3 || X - 8 >= 1 || Y - 8 >= 1 || Y + 8 <= SIZE )); then	
-		error
-	fi
-	
-}
-
-function checkPosition () {
-	local X=$1
-	local Y=$2
-	local LOWER_LIMIT=$3
-	local UPPER_LIMIT=$4
-	if (( $5 == 0 )); then
-		return 1
-	fi
-	
-	if (( Y >= LOWER_LIMIT && Y <= UPPER_LIMIT && X >= LOWER_LIMIT && X <= UPPER_LIMIT- 3 )); then
-		return 1
-	else
-		return 0
-	fi
-}
-
-function checkProcesses () {
-	ID1=$1
-	ID2=$2
-	ID3=$3
-	if (( $# == 3 )); then
-		if ! kill -0 $ID1 || ! kill -0 $ID2 || ! kill -0 $ID3 ; then
-			echo 1
-		else
-			echo 0
-		fi
-	else
-		if ! kill -0 $ID2 || ! kill -0 $ID1; then
-			echo 1
-		else
-			echo 0
-		fi
-	fi
-}
-
-
-function error () {
+function print_usage {
+	echo "Usage: ${BASH_SOURCE[0]} [-n n] [-k k] [-s s] [-p1 x1,y1] [-p2 x2,y2] [-ai1 ai1] [-ai2 ai2]" >&2
 	exit 1
 }
 
-function validatePositions () {
-	local X_DIFF=$3-$1
-	local Y_DIFF=$4-$2
-	
-	if ! (( X_DIFF <= -8 || X_DIFF >= 8 || Y_DIFF <= -8 || Y_DIFF >= 8 )); then
-		error
+if (( $# % 2 != 0 )); then
+	print_usage
+fi
+
+while (( $# != 0 )); do
+	ARG_NAME="$1"
+	ARG_VALUE="$2"
+	shift 2
+
+	case "$ARG_NAME" in
+		-n) N="$ARG_VALUE";;
+		-k) K="$ARG_VALUE";; 
+		-s) S="$ARG_VALUE";;
+		-p1) P1="$ARG_VALUE";;
+		-p2) P2="$ARG_VALUE";;
+		-ai1) AI1="$ARG_VALUE";;
+		-ai2) AI2="$ARG_VALUE";;
+		*) print_usage;;
+	esac
+done
+
+#################################
+# checking argument correctness #
+#################################
+
+if ! [[ "$N" =~ ^[0-9]+$ ]] || (( N < 9 || N > 2147483647 )); then
+	echo "Parameter \"n\" out of range or not a number." >&2
+	exit 1
+elif ! [[ "$K" =~ ^[0-9]+$ ]] || (( K < 1 || K > 2147483647 )); then
+	echo "Parameter \"k\" out of range or not a number." >&2
+	exit 1
+elif ! [[ "$S" =~ ^(0|[1-9][0-9]*)$ ]]; then
+	echo "Parameter \"s\" is not a non-negative integer." >&2
+	exit 1
+elif ! [[ "$P1" == "" || "$P1" =~ ^[1-9][0-9]*,[1-9][0-9]*$ ]]; then
+	echo "Parameter \"p1\" is not a corrent point coordinate." >&2
+	exit 1
+elif ! [[ "$P2" == "" || "$P2" =~ ^[1-9][0-9]*,[1-9][0-9]*$ ]]; then
+	echo "Parameter \"p2\" is not a corrent point coordinate." >&2
+	exit 1
+elif ! [[ "$AI1" == "" || -x "$AI1" ]]; then
+	echo "Parameter \"ai1\" is not a correct executable file path." >&2
+	exit 1
+elif ! [[ "$AI2" == "" || -x "$AI2" ]]; then
+	echo "Parameter \"ai2\" is not a correct executable file path." >&2
+	exit 1
+fi
+
+##########################################
+# parsing or computing initial positions #
+##########################################
+
+MIN_DIST=8
+function dist_too_small {
+	A=($1 $2)
+	B=($3 $4)
+
+	if (( A[0] - B[0] >= MIN_DIST || B[0] - A[0] >= MIN_DIST || A[1] - B[1] >= MIN_DIST || B[1] - A[1] >= MIN_DIST )); then
+		return 1 # bash false
+	else
+		return 0 # bash true
 	fi
 }
 
-while (($# > 1)); do
-	case "$1" in
-	"-n") BOARD_SIZE="$2";;
-	"-k") TURN_LIMIT="$2";;
-	"-s") DELAY="$2";;
-	"-p1") FLAG[0]=1; POS1="$2";;
-	"-p2") FLAG[1]=1; POS2="$2";; 
-	"-ai1") FLAG[2]=1; AI1_PATH="$2";;
-	"-ai2") FLAG[3]=1; AI2_PATH="$2";;
-	*) error
-	esac
-	shift 2
+function no_place_for_other_player {
+	if dist_too_small $1 $2 1 1 && dist_too_small $1 $2 $((N-3)) $N; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+# 45-bit random unsigned integer
+RANDOM_RANGE=32768
+function large_random {
+	echo $((RANDOM+RANDOM*(RANDOM_RANGE+RANDOM*RANDOM_RANGE)))
+}
+
+function random_point {
+	echo $((1 + `large_random` % (N - 3))) $((1 + `large_random` % N))
+}
+
+function random_matching_point {
+	while true; do
+		CANDIDATE=(`random_point`)
+		if ! dist_too_small $1 $2 ${CANDIDATE[@]}; then
+			echo ${CANDIDATE[@]}
+			return
+		fi
+	done
+}
+
+if [[ "$P1" != "" ]]; then
+	P1_ARR=(${P1/,/ })
+
+	if (( P1_ARR[0] > N - 3 || P1_ARR[1] > N )); then
+		echo "Parameter \"p1\" out of board bounds." >&2
+		exit 1
+	fi
+fi
+
+if [[ "$P2" != "" ]]; then
+	P2_ARR=(${P2/,/ })
+
+	if (( P2_ARR[0] > N - 3 || P2_ARR[1] > N )); then
+		echo "Parameter \"p2\" out of board bounds." >&2
+		exit 1
+	fi
+fi
+
+# when picking at random, we pick the second point uniformly until it's okay
+# the worst case where it's still possible is for n=15, where the probability can be as low as 1/15, but this is plenty high
+
+while [[ "$P1_ARR" == "" && "$P2_ARR" == "" ]]; do
+	P1_CANDIDATE=(`random_point`)
+	if ! no_place_for_other_player ${P1_CANDIDATE[@]}; then
+		P1_ARR=(${P1_CANDIDATE[@]})
+	fi
 done
 
-POS1_X=${POS1%,*}
-POS1_Y=${POS1#*,}
+if [[ "$P1_ARR" == "" ]]; then
+	if no_place_for_other_player ${P2_ARR[@]}; then
+		echo "Specified starting point \"p2\" leaves no legal starting points to choose for the other player." >&2
+		exit 1
+	fi
 
-POS2_X=${POS2%,*}
-POS2_Y=${POS2#*,}
+	P1_ARR=(`random_matching_point ${P2_ARR[@]}`)
+elif [[ "$P2_ARR" == "" ]]; then
+	if no_place_for_other_player ${P1_ARR[@]}; then
+		echo "Specified starting point \"p1\" leaves no legal starting points to choose for the other player." >&2
+		exit 1
+	fi
 
-if [[ $# != 0 ]]; then
-	error
-elif ! [[ $BOARD_SIZE =~ ^[0-9]+$ ]] || checkLimits $BOARD_SIZE 9 $MAX_INT; then
-	error
-elif ! [[ $TURN_LIMIT =~ ^[0-9]+$ ]] || checkLimits $TURN_LIMIT 1 $MAX_INT; then
-	error
-elif ! [[ $DELAY =~ ^[0-9]+$ ]]; then
-	error
-elif ! [[ $POS1 =~ ^[0-9]+,[0-9]+$ ]] || checkPosition $POS1_X $POS1_Y 1 $BOARD_SIZE ${FLAG[0]}; then
-	error
-elif ! [[ $POS2 =~ ^[0-9]+,[0-9]+$ ]] || checkPosition $POS2_X $POS2_Y 1 $BOARD_SIZE ${FLAG[1]}; then
-	error
-elif ! [ -x $AI1_PATH ]; then
-	error
-elif ! [ -x $AI2_PATH ]; then
-	error
+	P2_ARR=(`random_matching_point ${P1_ARR[@]}`)
+else
+	if dist_too_small ${P1_ARR[@]} ${P2_ARR[@]}; then
+		echo "Points \"p1\" and \"p2\" are closer than 8 from each other." >&2
+		exit 1
+	fi
 fi
 
-CNT=0
-ARRL=(0 0)
-ARRU=(0 0)
+###########################
+# running the gui and ais #
+###########################
 
-if (( ${FLAG[0]} == 1 )); then
-	if (( ${FLAG[1]} == 1 )); then
-		validatePositions $POS1_X $POS1_Y $POS2_X $POS2_Y
-	else
-		secondPositionAvailable $POS1_X $POS1_Y $BOARD_SIZE
-		POS2_X=$(randomNumber 1 $BOARD_SIZE-3)
-		if (( POS2_X >= POS1_X - 8 && POS2_X <= POS1_X + 8 )); then
-			if (( POS1_Y - 8 >= 1 )); then
-				ARRL[0]=1
-				ARRU[0]=$(( POS1_Y - 8 ))
-				CNT=$(( CNT + 1 ))
-			fi
-			
-			if (( POS1_Y + 8 <= BOARD_SIZE )); then
-				ARRL[$CNT]=$(( POS1_Y + 8 ))
-				ARRU[$CNT]=$BOARD_SIZE
-				CNT=$(( CNT + 1 ))
-			fi
-			
-			TMP=$(( RANDOM % CNT ))
-			POS2_Y=$(randomNumber ARRL[$TMP] ARRU[$TMP]) 
-		else
-			POS2_Y=$(randomNumber 1 $BOARD_SIZE)
+function pid_tree {
+	echo -n "$1 "
+
+	for child in `pgrep -P $1`; do
+		pid_tree $child
+	done
+}
+
+GUI="./sredniowiecze_gui_with_libs.sh"
+
+function init_msg {
+	echo "INIT $N $K $1 ${P1_ARR[@]} ${P2_ARR[@]}"
+}
+
+if [[ "$AI1" == "" && "$AI2" == "" ]]; then
+	# human vs human
+
+	{
+		init_msg 1
+		init_msg 2
+	} | $GUI -human1 -human2 > /dev/null || exit 1
+elif [[ "$AI1" != "" && "$AI2" != "" ]]; then
+	# ai vs ai
+
+	PIPE="`mktemp -u`"
+	mkfifo "$PIPE"
+	exec 3<>"$PIPE"
+	rm $PIPE
+
+	PIPE="`mktemp -u`"
+	mkfifo "$PIPE"
+	exec 4<>"$PIPE"
+	rm $PIPE
+
+	PIPE="`mktemp -u`"
+	mkfifo "$PIPE"
+	exec 5<>"$PIPE"
+	rm $PIPE
+
+	PIPE="`mktemp -u`"
+	mkfifo "$PIPE"
+	exec 6<>"$PIPE"
+	rm $PIPE
+
+	PIPE="`mktemp -u`"
+	mkfifo "$PIPE"
+	exec 7<>"$PIPE"
+	rm $PIPE
+
+	{
+		$AI1 <&3 >&4
+		AI1_ERROR_CODE=$?
+		if (( AI1_ERROR_CODE < 0 || AI1_ERROR_CODE > 2 )); then
+			exit 1
 		fi
+	} &
+	PID_AI1=$!
+
+	{
+		$AI2 <&5 >&6
+		AI2_ERROR_CODE=$?
+		if (( AI2_ERROR_CODE < 0 || AI2_ERROR_CODE > 2 )); then
+			exit 1
+		fi
+	} &
+	PID_AI2=$!
+
+	{
+		init_msg 1 >&7
+		init_msg 2 >&7
+
+		init_msg 1 >&3
+		init_msg 2 >&5
+
+		while true; do
+			AI1_MSG=""
+			while [[ "$AI1_MSG" != "END_TURN" ]]; do
+				read AI1_MSG <&4
+				echo $AI1_MSG >&7
+				echo $AI1_MSG >&5
+			done
+
+			sleep $S
+
+			AI2_MSG=""
+			while [[ "$AI2_MSG" != "END_TURN" ]]; do
+				read AI2_MSG <&6
+				echo $AI2_MSG >&7
+				echo $AI2_MSG >&3
+			done
+
+			sleep $S
+		done
+	} &
+	PID_MAIN=$!
+	
+	$GUI <&7
+	OK="$?"
+
+	exec 3<&-
+	exec 4<&-
+	exec 5<&-
+	exec 6<&-
+	exec 7<&-
+
+	sleep 0.2
+
+	kill -9 `pid_tree $PID_AI1` `pid_tree $PID_AI2` `pid_tree $PID_MAIN` 2> /dev/null
+
+	wait $PID_AI1
+	OK="$OK$?"
+	wait $PID_AI2
+	OK="$OK$?"
+
+	if [[ "$OK" != "000" ]]; then
+		exit 1
 	fi
 else
-	if (( ${FLAG[1]} == 1 )); then
-		secondPositionAvailable $POS2_X $POS2_Y $BOARD_SIZE
-		POS1_X=$(randomNumber 1 $BOARD_SIZE-3)
-		CNT=0
-		if (( POS1_X >= POS2_X - 8 && POS1_X <= POS2_X + 8 )); then
-			if (( POS2_Y - 8 >= 1 )); then
-				ARRL[0]=1
-				ARRU[0]=$(( POS2_Y - 8 ))
-				CNT=$(( CNT + 1 ))
-			fi
-			
-			if (( POS2_Y + 8 <= BOARD_SIZE )); then
-				ARRL[$CNT]=$(( POS2_Y + 8 ))
-				ARRU[$CNT]=$BOARD_SIZE
-				CNT=$(( CNT + 1 ))
-			fi
-			
-			TMP=$(( RANDOM % CNT ))
-			POS1_Y=$(randomNumber ARRL[$TMP] ARRU[$TMP]) 
+	# human vs ai
+
+	PIPE="`mktemp -u`"
+	mkfifo "$PIPE"
+	exec 3<>"$PIPE"
+	rm $PIPE
+
+	PIPE="`mktemp -u`"
+	mkfifo "$PIPE"
+	exec 4<>"$PIPE"
+	rm $PIPE
+
+	{
+		if [[ "$AI1" != "" ]]; then
+			$AI1 <&3 >&4
 		else
-			POS1_Y=$(randomNumber 1 $BOARD_SIZE)
+			$AI2 <&3 >&4
 		fi
+		AI_ERROR_CODE=$?
+		if (( AI_ERROR_CODE < 0 || AI_ERROR_CODE > 2 )); then
+			exit 1
+		fi
+	} &
+	AI_PID=$!
+
+	{
+		if [[ "$AI1" != "" ]]; then
+			GUI_ARGS="-human2"
+		else
+			GUI_ARGS="-human1"
+		fi
+
+		$GUI $GUI_ARGS <&4 >&3 || exit 1
+	} &
+	GUI_PID=$!
+
+	init_msg 1 >&4
+	init_msg 2 >&4
+
+	if [[ "$AI1" != "" ]]; then
+		init_msg 1 >&3
 	else
-		POS1_X=$(randomNumber 1 $((BOARD_SIZE-3)))
-		TMP=$(randomNumber 0 1)
-		if ((TMP == 1)); then
-			POS1_Y=$(randomNumber 1 $BOARD_SIZE-8)
-		else
-			POS1_Y=$(randomNumber 9 $BOARD_SIZE)
-		fi
-		POS2_X=$(randomNumber 1 $BOARD_SIZE-3)
-		CNT=0
-		if (( POS2_X >= POS1_X - 8 && POS2_X <= POS1_X + 8 )); then
-			if (( POS1_Y - 8 >= 1 )); then
-				ARRL[0]=1
-				ARRU[0]=$(( POS1_Y - 8 ))
-				CNT=$(( CNT + 1 ))
-			fi
-			
-			if (( POS1_Y + 8 <= BOARD_SIZE )); then
-				ARRL[$CNT]=$(( POS1_Y + 8 ))
-				ARRU[$CNT]=$BOARD_SIZE
-				CNT=$(( CNT + 1 ))
-			fi
-			
-			TMP=$(( RANDOM % CNT ))
-			POS2_Y=$(randomNumber ARRL[$TMP] ARRU[$TMP]) 
-		else
-			POS2_Y=$(randomNumber 1 $BOARD_SIZE)
-		fi
+		init_msg 2 >&3
+	fi
+
+	wait $GUI_PID
+	OK="$?"
+
+	exec 3<&-
+	exec 4<&-
+
+	sleep 0.2
+
+	kill -9 `pid_tree $AI_PID` 2> /dev/null
+
+	wait $AI_PID
+	OK="$OK$?"
+
+	if [[ "$OK" != "00" ]]; then
+		exit 1
 	fi
 fi
-
-GUI_IN=3
-PIPE=$(mktemp -u)
-mkfifo $PIPE
-eval "exec ${GUI_IN}<>${PIPE}"
-rm $PIPE
-
-GUI_OUT=4
-PIPE=$(mktemp -u)
-mkfifo $PIPE
-eval "exec ${GUI_OUT}<>${PIPE}"
-rm $PIPE
-
-AI1_IN=5
-PIPE=$(mktemp -u)
-mkfifo $PIPE
-eval "exec ${AI1_IN}<>${PIPE}"
-rm $PIPE
-
-AI1_OUT=6
-PIPE=$(mktemp -u)
-mkfifo $PIPE
-eval "exec ${AI1_OUT}<>${PIPE}"
-rm $PIPE
-
-AI2_IN=7
-PIPE=$(mktemp -u)
-mkfifo $PIPE
-eval "exec ${AI2_IN}<>${PIPE}"
-rm $PIPE
-
-AI2_OUT=8
-PIPE=$(mktemp -u)
-mkfifo $PIPE
-eval "exec ${AI2_OUT}<>${PIPE}"
-rm $PIPE
-
-if (( ${FLAG[2]} == 0 && ${FLAG[3]} == 0 )); then
-	./sredniowiecze_gui_with_libs.sh -human1 -human2 <&${GUI_IN} >&${GUI_OUT} &
-	GUI_ID=$!
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 1 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${GUI_IN}
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 2 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${GUI_IN}
-	wait $GUI_ID
-	GUI_CODE=$?
-	if (( GUI_CODE != 0 )); then
-		error
-	fi
-	
-elif (( ${FLAG[2]} == 1 && ${FLAG[3]} == 1 )); then
-	./sredniowiecze_gui_with_libs.sh <&${GUI_IN} >&${GUI_OUT} &
-	GUI_ID=$!
-	
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 1 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${GUI_IN}
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 2 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${GUI_IN}
-	
-	$AI1_PATH <&${AI1_IN} >&${AI1_OUT} &
-	AI1_ID=$!
-	
-	$AI2_PATH <&${AI2_IN} >&${AI2_OUT} &
-	AI2_ID=$!
-	
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 1 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${AI1_IN}
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 2 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${AI2_IN} 
-	
-	while (( 1 )); do
-		
-		sleep $DELAY
-		
-		echo $GUARD >&${AI1_OUT}
-		while read line <&${AI1_OUT}; do	
-			if [[ $line == $GUARD ]]; then
-				echo $GUARD >&${GUI_OUT}
-			else
-				echo $line >&${GUI_IN}
-				echo $line >&${AI2_IN}
-			fi
-			STATUS=$(checkProcesses $AI1_ID $GUI_ID $AI2_ID)
-			if [[ $line == "END_TURN" ]]; then
-				break
-			fi
-			if (( $STATUS == 1 )); then
-				break
-			fi
-		done
-		
-		sleep $DELAY
-		
-		echo $GUARD >&${AI2_OUT}
-		while read line <&${AI2_OUT}; do
-			if [[ $line == $GUARD ]]; then
-				echo $GUARD >&${AI2_OUT}
-			else
-				echo $line >&${GUI_IN}
-				echo $line >&${AI1_IN}
-			fi
-			STATUS=$(checkProcesses $AI1_ID $GUI_ID $AI2_ID)
-			if (( $STATUS == 1 )); then
-				break
-			fi
-			if [[ $line == "END_TURN" ]]; then
-				break
-			fi
-		done
-		
-		STATUS=$(checkProcesses $AI1_ID $AI2_ID $GUI_ID)
-		if (( $STATUS == 1 )); then
-			echo $GUARD >&${AI2_OUT}
-			while read line <&${AI2_OUT}; do
-				if [[ $line == $GUARD ]]; then
-					break
-				fi
-				echo $line >&${GUI_IN}
-				echo $line >&${AI1_IN}
-				if [[ $line == "END_TURN" ]]; then
-					break
-				fi
-			done;
-			
-			echo $GUARD >&${AI1_OUT}
-			while read line <&${AI1_OUT}; do
-				if [[ $line == $GUARD ]]; then
-					break
-				fi
-				echo $line >&${GUI_IN}
-				echo $line >&${AI2_IN}
-				if [[ $line == "END_TURN" ]]; then
-					break
-				fi
-			done;
-			break
-		fi
-		
-	done
-	
-	if ! kill -0 $AI2_ID; then
-		wait $AI2_ID
-		AI_CODE=$?
-		if (( AI_CODE != 0  && AI_CODE != 1 && AI_CODE != 2)); then
-			error
-		fi
-	else
-		kill $AI2_ID
-	fi
-	
-	if ! kill -0 $AI1_ID; then
-		wait $AI1_ID
-		AI_CODE=$?
-		if (( AI_CODE != 0  && AI_CODE != 1 && AI_CODE != 2)); then
-			error
-		fi
-	else
-		kill $AI1_ID
-	fi
-	
-	if ! kill -0 $GUI_ID; then
-		wait $GUI_ID
-		GUI_CODE=$?
-		if (( GUI_CODE != 0 )); then
-			error
-		fi
-	fi
-	
-elif (( ${FLAG[3]} == 1 )); then
-	./sredniowiecze_gui_with_libs.sh -human1 <&${GUI_IN} >&${GUI_OUT} &
-	GUI_ID=$!
-	$AI2_PATH <&${AI2_IN} >&${AI2_OUT} &
-	AI2_ID=$!
-	
-	
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 2 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${AI2_IN} 
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 1 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${GUI_IN}
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 2 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${GUI_IN}
-	
-	while (( 1 )); do
-		
-		echo $GUARD >&${GUI_OUT}
-		while read line <&${GUI_OUT}; do
-			if [[ $line == $GUARD ]]; then
-				echo $GUARD >&${GUI_OUT}
-			else
-				echo $line >&${AI2_IN}
-			fi
-			
-			if [[ $line == "END_TURN" ]]; then
-				break
-			fi
-				
-			STATUS=$(checkProcesses $AI2_ID $GUI_ID)
-			if (( $STATUS == 1 )); then
-				break
-			fi
-		done
-		
-		echo $GUARD >&${AI2_OUT}
-		while read line <&${AI2_OUT}; do
-			if [[ $line == $GUARD ]]; then
-				echo $GUARD >&${AI2_OUT}
-			else
-				echo $line >&${GUI_IN}
-			fi
-			STATUS=$(checkProcesses $AI2_ID $GUI_ID)
-			if (( $STATUS == 1 )); then
-				break
-			fi
-			if [[ $line == "END_TURN" ]]; then
-				break
-			fi
-		done
-		
-		STATUS=$(checkProcesses $AI2_ID $GUI_ID)
-		if (( STATUS == 1 )); then
-			echo $GUARD >&${AI2_OUT}
-			while read line <&${AI2_OUT}; do
-				if [[ $line == $GUARD ]]; then
-					break
-				fi
-				echo $line >&${GUI_IN}
-				if [[ $line == "END_TURN" ]]; then
-					break
-				fi
-			done;
-			break
-		fi
-		
-	done
-	
-	
-	if ! kill -0 $AI2_ID; then
-		wait $AI2_ID
-		AI_CODE=$?
-		if (( AI_CODE != 0  && AI_CODE != 1 && AI_CODE != 2)); then
-			error
-		fi
-	else
-		kill $AI2_ID
-	fi
-	
-	if ! kill -0 $GUI_ID; then
-		wait $GUI_ID
-		GUI_CODE=$?
-		if (( GUI_CODE != 0 )); then
-			error
-		fi
-	fi
-	
-else
-	./sredniowiecze_gui_with_libs.sh -human2 <&${GUI_IN} >&${GUI_OUT} &
-	GUI_ID=$!
-	$AI1_PATH <&${AI1_IN} >&${AI1_OUT} &
-	AI1_ID=$!
-	
-	
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 1 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${AI1_IN} 
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 1 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${GUI_IN}
-	echo "INIT $BOARD_SIZE $TURN_LIMIT 2 $POS1_X $POS1_Y $POS2_X $POS2_Y" >&${GUI_IN}
-	
-	while (( 1 )); do
-		
-		echo $GUARD >&${AI1_OUT}
-		while read line <&${AI1_OUT}; do	
-			if [[ $line == $GUARD ]]; then
-				echo $GUARD >&${AI1_OUT}
-			else
-				echo $line >&${GUI_IN}
-			fi
-			if [[ $line == "END_TURN" ]]; then
-				break
-			fi
-			
-			STATUS=$(checkProcesses $AI1_ID $GUI_ID)
-			if (( STATUS == 1 )); then
-				break
-			fi
-		done
-		
-		echo $GUARD >&${GUI_OUT}
-		
-		while read line <&${GUI_OUT}; do
-			if [[ $line == $GUARD ]]; then
-				echo $GUARD >&${GUI_OUT}
-			else
-				echo $line >&${AI1_IN}
-			fi
-			
-			if [[ $line == "END_TURN" ]]; then
-				break
-			fi
-				
-			STATUS=$(checkProcesses $AI1_ID $GUI_ID)
-			if (( $STATUS == 1 )); then
-				break
-			fi
-		done
-		
-		STATUS=$(checkProcesses $AI1_ID $GUI_ID)
-		if (( STATUS == 1 )); then
-			echo $GUARD >&${AI1_OUT}
-			while read line <&${AI1_OUT}; do
-				if [[ $line == $GUARD ]]; then
-					break
-				fi
-				echo $line >&${GUI_IN}
-				if [[ $line == "END_TURN" ]]; then
-					break
-				fi
-			done;	
-			break
-		fi
-		
-	done
-
-	if ! kill -0 $AI1_ID; then
-		wait $AI1_ID
-		AI_CODE=$?
-		if (( AI_CODE != 0  && AI_CODE != 1 && AI_CODE != 2)); then
-			error
-		fi
-	else
-		kill $AI1_ID
-	fi
-	
-	if ! kill -0 $GUI_ID; then
-		wait $GUI_ID
-		GUI_CODE=$?
-		if (( GUI_CODE != 0 )); then
-			error
-		fi
-	fi
-	
-fi
-
-exit 0
