@@ -65,7 +65,6 @@ int player; /**< Number of player in first init. */
 /** playerNumber - Number of the player that moves now,
   0 - first player, 1 - second player. */
 int playerNumber = 0;
-
 /** topLeft[i][j] - What piece is in i-th column and j-th row;
  null if no piece is in i-th column and j-th row. */
 Piece* topLeft[15][15];
@@ -684,8 +683,8 @@ Piece* chooseClosestPiece(Piece* piece, Piece* king, PieceList* list) {
  */
 int findDirectionAndMove(Piece* piece1, Piece* piece2, int flag) {
 	
-	int X[3];
-	int Y[3];
+	int X[10];
+	int Y[10];
 	int i, j, cnt = 0;
 	int nowDist = distance(piece1, piece2);
 	int exitCode = 47;
@@ -693,6 +692,17 @@ int findDirectionAndMove(Piece* piece1, Piece* piece2, int flag) {
 		for (j = -1; j <= 1; j++) {
 			int dist = distanceCoordinates(piece1->x + i, piece1->y + j, piece2->x, piece2->y);
 			if (dist < nowDist) {
+				X[cnt] = i;
+				Y[cnt] = j;
+				cnt++;
+			}
+		}
+	}
+	
+	for (i = -1; i <= 1; i++) {
+		for (j = -1; j <= 1; j++) {
+			int dist = distanceCoordinates(piece1->x + i, piece1->y + j, piece2->x, piece2->y);
+			if (dist == nowDist) {
 				X[cnt] = i;
 				Y[cnt] = j;
 				cnt++;
@@ -731,7 +741,7 @@ int findDirectionAndMove(Piece* piece1, Piece* piece2, int flag) {
 			}
 		} 
 	}
-	return exitCode;
+	return 47;
 }
 
 /**
